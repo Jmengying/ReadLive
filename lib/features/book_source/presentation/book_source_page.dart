@@ -1,6 +1,8 @@
+import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:file_picker/file_picker.dart';
 import 'package:readlive/features/book_source/presentation/book_source_provider.dart';
 import 'package:readlive/features/book_source/domain/book_source_entity.dart';
 
@@ -71,13 +73,49 @@ class BookSourcePage extends ConsumerWidget {
       context: context,
       builder: (ctx) => AlertDialog(
         title: const Text('导入书源'),
-        content: TextField(
-          controller: controller,
-          maxLines: 10,
-          decoration: const InputDecoration(
-            hintText: '粘贴书源 JSON...',
-            border: OutlineInputBorder(),
-          ),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            // File picker button
+            SizedBox(
+              width: double.infinity,
+              child: OutlinedButton.icon(
+                icon: const Icon(Icons.folder_open),
+                label: const Text('从 JSON 文件导入'),
+                onPressed: () => _importFromFile(context, ref, ctx),
+              ),
+            ),
+            const SizedBox(height: 12),
+            const Row(
+              children: [
+                Expanded(child: Divider()),
+                Padding(
+                  padding: EdgeInsets.symmetric(horizontal: 8),
+                  child: Text('或', style: TextStyle(color: Colors.grey)),
+                ),
+                Expanded(child: Divider()),
+              ],
+            ),
+            const SizedBox(height: 12),
+            // Text paste area
+            TextField(
+              controller: controller,
+              maxLines: 8,
+              decoration: const InputDecoration(
+                hintText: '粘贴书源 JSON...',
+                border: OutlineInputBorder(),
+              ),
+            ),
+            const SizedBox(height: 8),
+            // Format example button
+            Align(
+              alignment: Alignment.centerRight,
+              child: TextButton(
+                onPressed: () => _showFormatExample(context),
+                child: const Text('查看格式示例'),
+              ),
+            ),
+          ],
         ),
         actions: [
           TextButton(
@@ -87,25 +125,107 @@ class BookSourcePage extends ConsumerWidget {
           TextButton(
             onPressed: () async {
               final json = controller.text.trim();
-              if (json.isEmpty) return;
-              try {
-                final repo = ref.read(bookSourceRepositoryProvider);
-                final count = await repo.importFromJson(json);
-                if (ctx.mounted) {
-                  Navigator.pop(ctx);
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(content: Text('已导入 $count 个书源')),
-                  );
-                }
-              } catch (e) {
-                if (ctx.mounted) {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(content: Text('导入失败: $e')),
-                  );
-                }
+              if (json.isEmpty) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(content: Text('请输入或粘贴书源 JSON')),
+                );
+                return;
               }
+              await _doImport(context, ref, ctx, json);
             },
             child: const Text('导入'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Future<void> _importFromFile(
+      BuildContext context, WidgetRef ref, BuildContext ctx) async {
+    try {
+      final result = await FilePicker.platform.pickFiles(
+        type: FileType.custom,
+        allowedExtensions: ['json'],
+      );
+      if (result == null || result.files.isEmpty) return;
+
+      final filePath = result.files.first.path;
+      if (filePath == null) return;
+
+      final file = File(filePath);
+      final json = await file.readAsString();
+      if (ctx.mounted) {
+        await _doImport(context, ref, ctx, json);
+      }
+    } catch (e) {
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('读取文件失败: $e')),
+        );
+      }
+    }
+  }
+
+  Future<void> _doImport(BuildContext context, WidgetRef ref,
+      BuildContext ctx, String json) async {
+    try {
+      final repo = ref.read(bookSourceRepositoryProvider);
+      final count = await repo.importFromJson(json);
+      if (ctx.mounted) {
+        Navigator.pop(ctx);
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('已导入 $count 个书源')),
+        );
+      }
+    } catch (e) {
+      if (ctx.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('导入失败: $e')),
+        );
+      }
+    }
+  }
+
+  void _showFormatExample(BuildContext context) {
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('书源 JSON 格式'),
+        content: SingleChildScrollView(
+          child: SelectableText(
+            '''单个书源:
+{
+  "name": "示例书源",
+  "host": "https://example.com",
+  "search": {
+    "url": "https://example.com/search?q={{key}}",
+    "list": ".book-item",
+    "bookName": ".book-name@text",
+    "author": ".book-author@text",
+    "bookUrl": ".book-name@href"
+  },
+  "bookInfo": {
+    "cover": ".book-cover@src",
+    "intro": ".book-intro@text"
+  },
+  "toc": {
+    "list": ".chapter-list a",
+    "name": "@text",
+    "url": "@href"
+  },
+  "content": {
+    "content": ".chapter-content@text"
+  }
+}
+
+也支持数组格式 [源1, 源2, ...]''',
+            style: const TextStyle(fontSize: 12, fontFamily: 'monospace'),
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text('关闭'),
           ),
         ],
       ),
