@@ -32,6 +32,23 @@ class ChaptersTable extends Table {
   Set<Column> get primaryKey => {id};
 }
 
+class BookSourcesTable extends Table {
+  TextColumn get id => text()();
+  TextColumn get name => text().withLength(min: 1, max: 200)();
+  TextColumn get host => text()();
+  TextColumn get contentType => text().withDefault(const Constant('novel'))();
+  BoolColumn get enabled => boolean().withDefault(const Constant(true))();
+  IntColumn get weight => integer().withDefault(const Constant(100))();
+  TextColumn get ruleJson => text()();
+  TextColumn get status => text().withDefault(const Constant('active'))();
+  IntColumn get lastTestedAt => integer().nullable()();
+  TextColumn get groupName => text().nullable()();
+  IntColumn get createdAt => integer()();
+
+  @override
+  Set<Column> get primaryKey => {id};
+}
+
 class BookmarksTable extends Table {
   TextColumn get id => text()();
   TextColumn get bookId => text().references(BooksTable, #id)();

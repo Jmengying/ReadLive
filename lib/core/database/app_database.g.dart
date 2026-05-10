@@ -1513,18 +1513,572 @@ class BookmarksTableCompanion extends UpdateCompanion<BookmarksTableData> {
   }
 }
 
+class $BookSourcesTableTable extends BookSourcesTable
+    with TableInfo<$BookSourcesTableTable, BookSourcesTableData> {
+  @override
+  final GeneratedDatabase attachedDatabase;
+  final String? _alias;
+  $BookSourcesTableTable(this.attachedDatabase, [this._alias]);
+  static const VerificationMeta _idMeta = const VerificationMeta('id');
+  @override
+  late final GeneratedColumn<String> id = GeneratedColumn<String>(
+      'id', aliasedName, false,
+      type: DriftSqlType.string, requiredDuringInsert: true);
+  static const VerificationMeta _nameMeta = const VerificationMeta('name');
+  @override
+  late final GeneratedColumn<String> name = GeneratedColumn<String>(
+      'name', aliasedName, false,
+      additionalChecks:
+          GeneratedColumn.checkTextLength(minTextLength: 1, maxTextLength: 200),
+      type: DriftSqlType.string,
+      requiredDuringInsert: true);
+  static const VerificationMeta _hostMeta = const VerificationMeta('host');
+  @override
+  late final GeneratedColumn<String> host = GeneratedColumn<String>(
+      'host', aliasedName, false,
+      type: DriftSqlType.string, requiredDuringInsert: true);
+  static const VerificationMeta _contentTypeMeta =
+      const VerificationMeta('contentType');
+  @override
+  late final GeneratedColumn<String> contentType = GeneratedColumn<String>(
+      'content_type', aliasedName, false,
+      type: DriftSqlType.string,
+      requiredDuringInsert: false,
+      defaultValue: const Constant('novel'));
+  static const VerificationMeta _enabledMeta =
+      const VerificationMeta('enabled');
+  @override
+  late final GeneratedColumn<bool> enabled = GeneratedColumn<bool>(
+      'enabled', aliasedName, false,
+      type: DriftSqlType.bool,
+      requiredDuringInsert: false,
+      defaultConstraints:
+          GeneratedColumn.constraintIsAlways('CHECK ("enabled" IN (0, 1))'),
+      defaultValue: const Constant(true));
+  static const VerificationMeta _weightMeta = const VerificationMeta('weight');
+  @override
+  late final GeneratedColumn<int> weight = GeneratedColumn<int>(
+      'weight', aliasedName, false,
+      type: DriftSqlType.int,
+      requiredDuringInsert: false,
+      defaultValue: const Constant(100));
+  static const VerificationMeta _ruleJsonMeta =
+      const VerificationMeta('ruleJson');
+  @override
+  late final GeneratedColumn<String> ruleJson = GeneratedColumn<String>(
+      'rule_json', aliasedName, false,
+      type: DriftSqlType.string, requiredDuringInsert: true);
+  static const VerificationMeta _statusMeta = const VerificationMeta('status');
+  @override
+  late final GeneratedColumn<String> status = GeneratedColumn<String>(
+      'status', aliasedName, false,
+      type: DriftSqlType.string,
+      requiredDuringInsert: false,
+      defaultValue: const Constant('active'));
+  static const VerificationMeta _lastTestedAtMeta =
+      const VerificationMeta('lastTestedAt');
+  @override
+  late final GeneratedColumn<int> lastTestedAt = GeneratedColumn<int>(
+      'last_tested_at', aliasedName, true,
+      type: DriftSqlType.int, requiredDuringInsert: false);
+  static const VerificationMeta _groupNameMeta =
+      const VerificationMeta('groupName');
+  @override
+  late final GeneratedColumn<String> groupName = GeneratedColumn<String>(
+      'group_name', aliasedName, true,
+      type: DriftSqlType.string, requiredDuringInsert: false);
+  static const VerificationMeta _createdAtMeta =
+      const VerificationMeta('createdAt');
+  @override
+  late final GeneratedColumn<int> createdAt = GeneratedColumn<int>(
+      'created_at', aliasedName, false,
+      type: DriftSqlType.int, requiredDuringInsert: true);
+  @override
+  List<GeneratedColumn> get $columns => [
+        id,
+        name,
+        host,
+        contentType,
+        enabled,
+        weight,
+        ruleJson,
+        status,
+        lastTestedAt,
+        groupName,
+        createdAt
+      ];
+  @override
+  String get aliasedName => _alias ?? actualTableName;
+  @override
+  String get actualTableName => $name;
+  static const String $name = 'book_sources_table';
+  @override
+  VerificationContext validateIntegrity(
+      Insertable<BookSourcesTableData> instance,
+      {bool isInserting = false}) {
+    final context = VerificationContext();
+    final data = instance.toColumns(true);
+    if (data.containsKey('id')) {
+      context.handle(_idMeta, id.isAcceptableOrUnknown(data['id']!, _idMeta));
+    } else if (isInserting) {
+      context.missing(_idMeta);
+    }
+    if (data.containsKey('name')) {
+      context.handle(
+          _nameMeta, name.isAcceptableOrUnknown(data['name']!, _nameMeta));
+    } else if (isInserting) {
+      context.missing(_nameMeta);
+    }
+    if (data.containsKey('host')) {
+      context.handle(
+          _hostMeta, host.isAcceptableOrUnknown(data['host']!, _hostMeta));
+    } else if (isInserting) {
+      context.missing(_hostMeta);
+    }
+    if (data.containsKey('content_type')) {
+      context.handle(
+          _contentTypeMeta,
+          contentType.isAcceptableOrUnknown(
+              data['content_type']!, _contentTypeMeta));
+    }
+    if (data.containsKey('enabled')) {
+      context.handle(_enabledMeta,
+          enabled.isAcceptableOrUnknown(data['enabled']!, _enabledMeta));
+    }
+    if (data.containsKey('weight')) {
+      context.handle(_weightMeta,
+          weight.isAcceptableOrUnknown(data['weight']!, _weightMeta));
+    }
+    if (data.containsKey('rule_json')) {
+      context.handle(_ruleJsonMeta,
+          ruleJson.isAcceptableOrUnknown(data['rule_json']!, _ruleJsonMeta));
+    } else if (isInserting) {
+      context.missing(_ruleJsonMeta);
+    }
+    if (data.containsKey('status')) {
+      context.handle(_statusMeta,
+          status.isAcceptableOrUnknown(data['status']!, _statusMeta));
+    }
+    if (data.containsKey('last_tested_at')) {
+      context.handle(
+          _lastTestedAtMeta,
+          lastTestedAt.isAcceptableOrUnknown(
+              data['last_tested_at']!, _lastTestedAtMeta));
+    }
+    if (data.containsKey('group_name')) {
+      context.handle(_groupNameMeta,
+          groupName.isAcceptableOrUnknown(data['group_name']!, _groupNameMeta));
+    }
+    if (data.containsKey('created_at')) {
+      context.handle(_createdAtMeta,
+          createdAt.isAcceptableOrUnknown(data['created_at']!, _createdAtMeta));
+    } else if (isInserting) {
+      context.missing(_createdAtMeta);
+    }
+    return context;
+  }
+
+  @override
+  Set<GeneratedColumn> get $primaryKey => {id};
+  @override
+  BookSourcesTableData map(Map<String, dynamic> data, {String? tablePrefix}) {
+    final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
+    return BookSourcesTableData(
+      id: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}id'])!,
+      name: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}name'])!,
+      host: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}host'])!,
+      contentType: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}content_type'])!,
+      enabled: attachedDatabase.typeMapping
+          .read(DriftSqlType.bool, data['${effectivePrefix}enabled'])!,
+      weight: attachedDatabase.typeMapping
+          .read(DriftSqlType.int, data['${effectivePrefix}weight'])!,
+      ruleJson: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}rule_json'])!,
+      status: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}status'])!,
+      lastTestedAt: attachedDatabase.typeMapping
+          .read(DriftSqlType.int, data['${effectivePrefix}last_tested_at']),
+      groupName: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}group_name']),
+      createdAt: attachedDatabase.typeMapping
+          .read(DriftSqlType.int, data['${effectivePrefix}created_at'])!,
+    );
+  }
+
+  @override
+  $BookSourcesTableTable createAlias(String alias) {
+    return $BookSourcesTableTable(attachedDatabase, alias);
+  }
+}
+
+class BookSourcesTableData extends DataClass
+    implements Insertable<BookSourcesTableData> {
+  final String id;
+  final String name;
+  final String host;
+  final String contentType;
+  final bool enabled;
+  final int weight;
+  final String ruleJson;
+  final String status;
+  final int? lastTestedAt;
+  final String? groupName;
+  final int createdAt;
+  const BookSourcesTableData(
+      {required this.id,
+      required this.name,
+      required this.host,
+      required this.contentType,
+      required this.enabled,
+      required this.weight,
+      required this.ruleJson,
+      required this.status,
+      this.lastTestedAt,
+      this.groupName,
+      required this.createdAt});
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    map['id'] = Variable<String>(id);
+    map['name'] = Variable<String>(name);
+    map['host'] = Variable<String>(host);
+    map['content_type'] = Variable<String>(contentType);
+    map['enabled'] = Variable<bool>(enabled);
+    map['weight'] = Variable<int>(weight);
+    map['rule_json'] = Variable<String>(ruleJson);
+    map['status'] = Variable<String>(status);
+    if (!nullToAbsent || lastTestedAt != null) {
+      map['last_tested_at'] = Variable<int>(lastTestedAt);
+    }
+    if (!nullToAbsent || groupName != null) {
+      map['group_name'] = Variable<String>(groupName);
+    }
+    map['created_at'] = Variable<int>(createdAt);
+    return map;
+  }
+
+  BookSourcesTableCompanion toCompanion(bool nullToAbsent) {
+    return BookSourcesTableCompanion(
+      id: Value(id),
+      name: Value(name),
+      host: Value(host),
+      contentType: Value(contentType),
+      enabled: Value(enabled),
+      weight: Value(weight),
+      ruleJson: Value(ruleJson),
+      status: Value(status),
+      lastTestedAt: lastTestedAt == null && nullToAbsent
+          ? const Value.absent()
+          : Value(lastTestedAt),
+      groupName: groupName == null && nullToAbsent
+          ? const Value.absent()
+          : Value(groupName),
+      createdAt: Value(createdAt),
+    );
+  }
+
+  factory BookSourcesTableData.fromJson(Map<String, dynamic> json,
+      {ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return BookSourcesTableData(
+      id: serializer.fromJson<String>(json['id']),
+      name: serializer.fromJson<String>(json['name']),
+      host: serializer.fromJson<String>(json['host']),
+      contentType: serializer.fromJson<String>(json['contentType']),
+      enabled: serializer.fromJson<bool>(json['enabled']),
+      weight: serializer.fromJson<int>(json['weight']),
+      ruleJson: serializer.fromJson<String>(json['ruleJson']),
+      status: serializer.fromJson<String>(json['status']),
+      lastTestedAt: serializer.fromJson<int?>(json['lastTestedAt']),
+      groupName: serializer.fromJson<String?>(json['groupName']),
+      createdAt: serializer.fromJson<int>(json['createdAt']),
+    );
+  }
+  @override
+  Map<String, dynamic> toJson({ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return <String, dynamic>{
+      'id': serializer.toJson<String>(id),
+      'name': serializer.toJson<String>(name),
+      'host': serializer.toJson<String>(host),
+      'contentType': serializer.toJson<String>(contentType),
+      'enabled': serializer.toJson<bool>(enabled),
+      'weight': serializer.toJson<int>(weight),
+      'ruleJson': serializer.toJson<String>(ruleJson),
+      'status': serializer.toJson<String>(status),
+      'lastTestedAt': serializer.toJson<int?>(lastTestedAt),
+      'groupName': serializer.toJson<String?>(groupName),
+      'createdAt': serializer.toJson<int>(createdAt),
+    };
+  }
+
+  BookSourcesTableData copyWith(
+          {String? id,
+          String? name,
+          String? host,
+          String? contentType,
+          bool? enabled,
+          int? weight,
+          String? ruleJson,
+          String? status,
+          Value<int?> lastTestedAt = const Value.absent(),
+          Value<String?> groupName = const Value.absent(),
+          int? createdAt}) =>
+      BookSourcesTableData(
+        id: id ?? this.id,
+        name: name ?? this.name,
+        host: host ?? this.host,
+        contentType: contentType ?? this.contentType,
+        enabled: enabled ?? this.enabled,
+        weight: weight ?? this.weight,
+        ruleJson: ruleJson ?? this.ruleJson,
+        status: status ?? this.status,
+        lastTestedAt:
+            lastTestedAt.present ? lastTestedAt.value : this.lastTestedAt,
+        groupName: groupName.present ? groupName.value : this.groupName,
+        createdAt: createdAt ?? this.createdAt,
+      );
+  BookSourcesTableData copyWithCompanion(BookSourcesTableCompanion data) {
+    return BookSourcesTableData(
+      id: data.id.present ? data.id.value : this.id,
+      name: data.name.present ? data.name.value : this.name,
+      host: data.host.present ? data.host.value : this.host,
+      contentType:
+          data.contentType.present ? data.contentType.value : this.contentType,
+      enabled: data.enabled.present ? data.enabled.value : this.enabled,
+      weight: data.weight.present ? data.weight.value : this.weight,
+      ruleJson: data.ruleJson.present ? data.ruleJson.value : this.ruleJson,
+      status: data.status.present ? data.status.value : this.status,
+      lastTestedAt: data.lastTestedAt.present
+          ? data.lastTestedAt.value
+          : this.lastTestedAt,
+      groupName: data.groupName.present ? data.groupName.value : this.groupName,
+      createdAt: data.createdAt.present ? data.createdAt.value : this.createdAt,
+    );
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('BookSourcesTableData(')
+          ..write('id: $id, ')
+          ..write('name: $name, ')
+          ..write('host: $host, ')
+          ..write('contentType: $contentType, ')
+          ..write('enabled: $enabled, ')
+          ..write('weight: $weight, ')
+          ..write('ruleJson: $ruleJson, ')
+          ..write('status: $status, ')
+          ..write('lastTestedAt: $lastTestedAt, ')
+          ..write('groupName: $groupName, ')
+          ..write('createdAt: $createdAt')
+          ..write(')'))
+        .toString();
+  }
+
+  @override
+  int get hashCode => Object.hash(id, name, host, contentType, enabled, weight,
+      ruleJson, status, lastTestedAt, groupName, createdAt);
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      (other is BookSourcesTableData &&
+          other.id == this.id &&
+          other.name == this.name &&
+          other.host == this.host &&
+          other.contentType == this.contentType &&
+          other.enabled == this.enabled &&
+          other.weight == this.weight &&
+          other.ruleJson == this.ruleJson &&
+          other.status == this.status &&
+          other.lastTestedAt == this.lastTestedAt &&
+          other.groupName == this.groupName &&
+          other.createdAt == this.createdAt);
+}
+
+class BookSourcesTableCompanion extends UpdateCompanion<BookSourcesTableData> {
+  final Value<String> id;
+  final Value<String> name;
+  final Value<String> host;
+  final Value<String> contentType;
+  final Value<bool> enabled;
+  final Value<int> weight;
+  final Value<String> ruleJson;
+  final Value<String> status;
+  final Value<int?> lastTestedAt;
+  final Value<String?> groupName;
+  final Value<int> createdAt;
+  final Value<int> rowid;
+  const BookSourcesTableCompanion({
+    this.id = const Value.absent(),
+    this.name = const Value.absent(),
+    this.host = const Value.absent(),
+    this.contentType = const Value.absent(),
+    this.enabled = const Value.absent(),
+    this.weight = const Value.absent(),
+    this.ruleJson = const Value.absent(),
+    this.status = const Value.absent(),
+    this.lastTestedAt = const Value.absent(),
+    this.groupName = const Value.absent(),
+    this.createdAt = const Value.absent(),
+    this.rowid = const Value.absent(),
+  });
+  BookSourcesTableCompanion.insert({
+    required String id,
+    required String name,
+    required String host,
+    this.contentType = const Value.absent(),
+    this.enabled = const Value.absent(),
+    this.weight = const Value.absent(),
+    required String ruleJson,
+    this.status = const Value.absent(),
+    this.lastTestedAt = const Value.absent(),
+    this.groupName = const Value.absent(),
+    required int createdAt,
+    this.rowid = const Value.absent(),
+  })  : id = Value(id),
+        name = Value(name),
+        host = Value(host),
+        ruleJson = Value(ruleJson),
+        createdAt = Value(createdAt);
+  static Insertable<BookSourcesTableData> custom({
+    Expression<String>? id,
+    Expression<String>? name,
+    Expression<String>? host,
+    Expression<String>? contentType,
+    Expression<bool>? enabled,
+    Expression<int>? weight,
+    Expression<String>? ruleJson,
+    Expression<String>? status,
+    Expression<int>? lastTestedAt,
+    Expression<String>? groupName,
+    Expression<int>? createdAt,
+    Expression<int>? rowid,
+  }) {
+    return RawValuesInsertable({
+      if (id != null) 'id': id,
+      if (name != null) 'name': name,
+      if (host != null) 'host': host,
+      if (contentType != null) 'content_type': contentType,
+      if (enabled != null) 'enabled': enabled,
+      if (weight != null) 'weight': weight,
+      if (ruleJson != null) 'rule_json': ruleJson,
+      if (status != null) 'status': status,
+      if (lastTestedAt != null) 'last_tested_at': lastTestedAt,
+      if (groupName != null) 'group_name': groupName,
+      if (createdAt != null) 'created_at': createdAt,
+      if (rowid != null) 'rowid': rowid,
+    });
+  }
+
+  BookSourcesTableCompanion copyWith(
+      {Value<String>? id,
+      Value<String>? name,
+      Value<String>? host,
+      Value<String>? contentType,
+      Value<bool>? enabled,
+      Value<int>? weight,
+      Value<String>? ruleJson,
+      Value<String>? status,
+      Value<int?>? lastTestedAt,
+      Value<String?>? groupName,
+      Value<int>? createdAt,
+      Value<int>? rowid}) {
+    return BookSourcesTableCompanion(
+      id: id ?? this.id,
+      name: name ?? this.name,
+      host: host ?? this.host,
+      contentType: contentType ?? this.contentType,
+      enabled: enabled ?? this.enabled,
+      weight: weight ?? this.weight,
+      ruleJson: ruleJson ?? this.ruleJson,
+      status: status ?? this.status,
+      lastTestedAt: lastTestedAt ?? this.lastTestedAt,
+      groupName: groupName ?? this.groupName,
+      createdAt: createdAt ?? this.createdAt,
+      rowid: rowid ?? this.rowid,
+    );
+  }
+
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    if (id.present) {
+      map['id'] = Variable<String>(id.value);
+    }
+    if (name.present) {
+      map['name'] = Variable<String>(name.value);
+    }
+    if (host.present) {
+      map['host'] = Variable<String>(host.value);
+    }
+    if (contentType.present) {
+      map['content_type'] = Variable<String>(contentType.value);
+    }
+    if (enabled.present) {
+      map['enabled'] = Variable<bool>(enabled.value);
+    }
+    if (weight.present) {
+      map['weight'] = Variable<int>(weight.value);
+    }
+    if (ruleJson.present) {
+      map['rule_json'] = Variable<String>(ruleJson.value);
+    }
+    if (status.present) {
+      map['status'] = Variable<String>(status.value);
+    }
+    if (lastTestedAt.present) {
+      map['last_tested_at'] = Variable<int>(lastTestedAt.value);
+    }
+    if (groupName.present) {
+      map['group_name'] = Variable<String>(groupName.value);
+    }
+    if (createdAt.present) {
+      map['created_at'] = Variable<int>(createdAt.value);
+    }
+    if (rowid.present) {
+      map['rowid'] = Variable<int>(rowid.value);
+    }
+    return map;
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('BookSourcesTableCompanion(')
+          ..write('id: $id, ')
+          ..write('name: $name, ')
+          ..write('host: $host, ')
+          ..write('contentType: $contentType, ')
+          ..write('enabled: $enabled, ')
+          ..write('weight: $weight, ')
+          ..write('ruleJson: $ruleJson, ')
+          ..write('status: $status, ')
+          ..write('lastTestedAt: $lastTestedAt, ')
+          ..write('groupName: $groupName, ')
+          ..write('createdAt: $createdAt, ')
+          ..write('rowid: $rowid')
+          ..write(')'))
+        .toString();
+  }
+}
+
 abstract class _$AppDatabase extends GeneratedDatabase {
   _$AppDatabase(QueryExecutor e) : super(e);
   $AppDatabaseManager get managers => $AppDatabaseManager(this);
   late final $BooksTableTable booksTable = $BooksTableTable(this);
   late final $ChaptersTableTable chaptersTable = $ChaptersTableTable(this);
   late final $BookmarksTableTable bookmarksTable = $BookmarksTableTable(this);
+  late final $BookSourcesTableTable bookSourcesTable =
+      $BookSourcesTableTable(this);
   @override
   Iterable<TableInfo<Table, Object?>> get allTables =>
       allSchemaEntities.whereType<TableInfo<Table, Object?>>();
   @override
   List<DatabaseSchemaEntity> get allSchemaEntities =>
-      [booksTable, chaptersTable, bookmarksTable];
+      [booksTable, chaptersTable, bookmarksTable, bookSourcesTable];
 }
 
 typedef $$BooksTableTableCreateCompanionBuilder = BooksTableCompanion Function({
@@ -2772,6 +3326,273 @@ typedef $$BookmarksTableTableProcessedTableManager = ProcessedTableManager<
     (BookmarksTableData, $$BookmarksTableTableReferences),
     BookmarksTableData,
     PrefetchHooks Function({bool bookId, bool chapterId})>;
+typedef $$BookSourcesTableTableCreateCompanionBuilder
+    = BookSourcesTableCompanion Function({
+  required String id,
+  required String name,
+  required String host,
+  Value<String> contentType,
+  Value<bool> enabled,
+  Value<int> weight,
+  required String ruleJson,
+  Value<String> status,
+  Value<int?> lastTestedAt,
+  Value<String?> groupName,
+  required int createdAt,
+  Value<int> rowid,
+});
+typedef $$BookSourcesTableTableUpdateCompanionBuilder
+    = BookSourcesTableCompanion Function({
+  Value<String> id,
+  Value<String> name,
+  Value<String> host,
+  Value<String> contentType,
+  Value<bool> enabled,
+  Value<int> weight,
+  Value<String> ruleJson,
+  Value<String> status,
+  Value<int?> lastTestedAt,
+  Value<String?> groupName,
+  Value<int> createdAt,
+  Value<int> rowid,
+});
+
+class $$BookSourcesTableTableFilterComposer
+    extends Composer<_$AppDatabase, $BookSourcesTableTable> {
+  $$BookSourcesTableTableFilterComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnFilters<String> get id => $composableBuilder(
+      column: $table.id, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get name => $composableBuilder(
+      column: $table.name, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get host => $composableBuilder(
+      column: $table.host, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get contentType => $composableBuilder(
+      column: $table.contentType, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<bool> get enabled => $composableBuilder(
+      column: $table.enabled, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<int> get weight => $composableBuilder(
+      column: $table.weight, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get ruleJson => $composableBuilder(
+      column: $table.ruleJson, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get status => $composableBuilder(
+      column: $table.status, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<int> get lastTestedAt => $composableBuilder(
+      column: $table.lastTestedAt, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get groupName => $composableBuilder(
+      column: $table.groupName, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<int> get createdAt => $composableBuilder(
+      column: $table.createdAt, builder: (column) => ColumnFilters(column));
+}
+
+class $$BookSourcesTableTableOrderingComposer
+    extends Composer<_$AppDatabase, $BookSourcesTableTable> {
+  $$BookSourcesTableTableOrderingComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnOrderings<String> get id => $composableBuilder(
+      column: $table.id, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get name => $composableBuilder(
+      column: $table.name, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get host => $composableBuilder(
+      column: $table.host, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get contentType => $composableBuilder(
+      column: $table.contentType, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<bool> get enabled => $composableBuilder(
+      column: $table.enabled, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<int> get weight => $composableBuilder(
+      column: $table.weight, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get ruleJson => $composableBuilder(
+      column: $table.ruleJson, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get status => $composableBuilder(
+      column: $table.status, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<int> get lastTestedAt => $composableBuilder(
+      column: $table.lastTestedAt,
+      builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get groupName => $composableBuilder(
+      column: $table.groupName, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<int> get createdAt => $composableBuilder(
+      column: $table.createdAt, builder: (column) => ColumnOrderings(column));
+}
+
+class $$BookSourcesTableTableAnnotationComposer
+    extends Composer<_$AppDatabase, $BookSourcesTableTable> {
+  $$BookSourcesTableTableAnnotationComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  GeneratedColumn<String> get id =>
+      $composableBuilder(column: $table.id, builder: (column) => column);
+
+  GeneratedColumn<String> get name =>
+      $composableBuilder(column: $table.name, builder: (column) => column);
+
+  GeneratedColumn<String> get host =>
+      $composableBuilder(column: $table.host, builder: (column) => column);
+
+  GeneratedColumn<String> get contentType => $composableBuilder(
+      column: $table.contentType, builder: (column) => column);
+
+  GeneratedColumn<bool> get enabled =>
+      $composableBuilder(column: $table.enabled, builder: (column) => column);
+
+  GeneratedColumn<int> get weight =>
+      $composableBuilder(column: $table.weight, builder: (column) => column);
+
+  GeneratedColumn<String> get ruleJson =>
+      $composableBuilder(column: $table.ruleJson, builder: (column) => column);
+
+  GeneratedColumn<String> get status =>
+      $composableBuilder(column: $table.status, builder: (column) => column);
+
+  GeneratedColumn<int> get lastTestedAt => $composableBuilder(
+      column: $table.lastTestedAt, builder: (column) => column);
+
+  GeneratedColumn<String> get groupName =>
+      $composableBuilder(column: $table.groupName, builder: (column) => column);
+
+  GeneratedColumn<int> get createdAt =>
+      $composableBuilder(column: $table.createdAt, builder: (column) => column);
+}
+
+class $$BookSourcesTableTableTableManager extends RootTableManager<
+    _$AppDatabase,
+    $BookSourcesTableTable,
+    BookSourcesTableData,
+    $$BookSourcesTableTableFilterComposer,
+    $$BookSourcesTableTableOrderingComposer,
+    $$BookSourcesTableTableAnnotationComposer,
+    $$BookSourcesTableTableCreateCompanionBuilder,
+    $$BookSourcesTableTableUpdateCompanionBuilder,
+    (
+      BookSourcesTableData,
+      BaseReferences<_$AppDatabase, $BookSourcesTableTable,
+          BookSourcesTableData>
+    ),
+    BookSourcesTableData,
+    PrefetchHooks Function()> {
+  $$BookSourcesTableTableTableManager(
+      _$AppDatabase db, $BookSourcesTableTable table)
+      : super(TableManagerState(
+          db: db,
+          table: table,
+          createFilteringComposer: () =>
+              $$BookSourcesTableTableFilterComposer($db: db, $table: table),
+          createOrderingComposer: () =>
+              $$BookSourcesTableTableOrderingComposer($db: db, $table: table),
+          createComputedFieldComposer: () =>
+              $$BookSourcesTableTableAnnotationComposer($db: db, $table: table),
+          updateCompanionCallback: ({
+            Value<String> id = const Value.absent(),
+            Value<String> name = const Value.absent(),
+            Value<String> host = const Value.absent(),
+            Value<String> contentType = const Value.absent(),
+            Value<bool> enabled = const Value.absent(),
+            Value<int> weight = const Value.absent(),
+            Value<String> ruleJson = const Value.absent(),
+            Value<String> status = const Value.absent(),
+            Value<int?> lastTestedAt = const Value.absent(),
+            Value<String?> groupName = const Value.absent(),
+            Value<int> createdAt = const Value.absent(),
+            Value<int> rowid = const Value.absent(),
+          }) =>
+              BookSourcesTableCompanion(
+            id: id,
+            name: name,
+            host: host,
+            contentType: contentType,
+            enabled: enabled,
+            weight: weight,
+            ruleJson: ruleJson,
+            status: status,
+            lastTestedAt: lastTestedAt,
+            groupName: groupName,
+            createdAt: createdAt,
+            rowid: rowid,
+          ),
+          createCompanionCallback: ({
+            required String id,
+            required String name,
+            required String host,
+            Value<String> contentType = const Value.absent(),
+            Value<bool> enabled = const Value.absent(),
+            Value<int> weight = const Value.absent(),
+            required String ruleJson,
+            Value<String> status = const Value.absent(),
+            Value<int?> lastTestedAt = const Value.absent(),
+            Value<String?> groupName = const Value.absent(),
+            required int createdAt,
+            Value<int> rowid = const Value.absent(),
+          }) =>
+              BookSourcesTableCompanion.insert(
+            id: id,
+            name: name,
+            host: host,
+            contentType: contentType,
+            enabled: enabled,
+            weight: weight,
+            ruleJson: ruleJson,
+            status: status,
+            lastTestedAt: lastTestedAt,
+            groupName: groupName,
+            createdAt: createdAt,
+            rowid: rowid,
+          ),
+          withReferenceMapper: (p0) => p0
+              .map((e) => (e.readTable(table), BaseReferences(db, table, e)))
+              .toList(),
+          prefetchHooksCallback: null,
+        ));
+}
+
+typedef $$BookSourcesTableTableProcessedTableManager = ProcessedTableManager<
+    _$AppDatabase,
+    $BookSourcesTableTable,
+    BookSourcesTableData,
+    $$BookSourcesTableTableFilterComposer,
+    $$BookSourcesTableTableOrderingComposer,
+    $$BookSourcesTableTableAnnotationComposer,
+    $$BookSourcesTableTableCreateCompanionBuilder,
+    $$BookSourcesTableTableUpdateCompanionBuilder,
+    (
+      BookSourcesTableData,
+      BaseReferences<_$AppDatabase, $BookSourcesTableTable,
+          BookSourcesTableData>
+    ),
+    BookSourcesTableData,
+    PrefetchHooks Function()>;
 
 class $AppDatabaseManager {
   final _$AppDatabase _db;
@@ -2782,4 +3603,6 @@ class $AppDatabaseManager {
       $$ChaptersTableTableTableManager(_db, _db.chaptersTable);
   $$BookmarksTableTableTableManager get bookmarksTable =>
       $$BookmarksTableTableTableManager(_db, _db.bookmarksTable);
+  $$BookSourcesTableTableTableManager get bookSourcesTable =>
+      $$BookSourcesTableTableTableManager(_db, _db.bookSourcesTable);
 }

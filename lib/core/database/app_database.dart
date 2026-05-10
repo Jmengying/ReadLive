@@ -7,12 +7,22 @@ import 'tables.dart';
 
 part 'app_database.g.dart';
 
-@DriftDatabase(tables: [BooksTable, ChaptersTable, BookmarksTable])
+@DriftDatabase(tables: [BooksTable, ChaptersTable, BookmarksTable, BookSourcesTable])
 class AppDatabase extends _$AppDatabase {
   AppDatabase({QueryExecutor? executor}) : super(executor ?? _openConnection());
 
   @override
-  int get schemaVersion => 1;
+  int get schemaVersion => 2;
+
+  @override
+  MigrationStrategy get migration => MigrationStrategy(
+        onCreate: (m) => m.createAll(),
+        onUpgrade: (m, from, to) async {
+          if (from < 2) {
+            await m.createTable(bookSourcesTable);
+          }
+        },
+      );
 
   // Books CRUD
   Future<List<BooksTableData>> getAllBooks() => select(booksTable).get();
@@ -63,6 +73,29 @@ class AppDatabase extends _$AppDatabase {
 
   Future<int> deleteBookmark(String id) =>
       (delete(bookmarksTable)..where((t) => t.id.equals(id))).go();
+
+  // Book Sources CRUD
+  Future<List<BookSourcesTableData>> getAllBookSources() =>
+      select(bookSourcesTable).get();
+
+  Stream<List<BookSourcesTableData>> watchAllBookSources() =>
+      select(bookSourcesTable).watch();
+
+  Future<BookSourcesTableData?> getBookSourceById(String id) =>
+      (select(bookSourcesTable)..where((t) => t.id.equals(id)))
+          .getSingleOrNull();
+
+  Future<List<BookSourcesTableData>> getEnabledBookSources() =>
+      (select(bookSourcesTable)..where((t) => t.enabled.equals(true))).get();
+
+  Future<int> insertBookSource(BookSourcesTableCompanion entry) =>
+      into(bookSourcesTable).insert(entry, mode: InsertMode.insertOrReplace);
+
+  Future<bool> updateBookSource(BookSourcesTableCompanion entry) =>
+      update(bookSourcesTable).replace(entry);
+
+  Future<int> deleteBookSource(String id) =>
+      (delete(bookSourcesTable)..where((t) => t.id.equals(id))).go();
 }
 
 LazyDatabase _openConnection() {
