@@ -57,9 +57,7 @@ class ProfilePage extends ConsumerWidget {
             icon: Icons.cloud_outlined,
             title: '书源管理',
             subtitle: '管理网络书源规则',
-            onTap: () {
-              // Phase 2: book source management
-            },
+            onTap: () => context.push('/sources'),
           ),
           _MenuTile(
             icon: Icons.backup_outlined,

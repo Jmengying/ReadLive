@@ -4,6 +4,9 @@ import 'package:readlive/features/bookshelf/presentation/bookshelf_page.dart';
 import 'package:readlive/features/profile/presentation/profile_page.dart';
 import 'package:readlive/features/reader/presentation/reader_page.dart';
 import 'package:readlive/features/settings/presentation/settings_page.dart';
+import 'package:readlive/features/book_source/presentation/book_source_page.dart';
+import 'package:readlive/features/book_source/presentation/search_page.dart';
+import 'package:readlive/features/book_source/presentation/book_detail_page.dart';
 
 final _rootNavigatorKey = GlobalKey<NavigatorState>();
 final _shellNavigatorKey = GlobalKey<NavigatorState>();
@@ -47,6 +50,30 @@ final appRouter = GoRouter(
       path: '/settings',
       parentNavigatorKey: _rootNavigatorKey,
       builder: (context, state) => const SettingsPage(),
+    ),
+    GoRoute(
+      path: '/sources',
+      parentNavigatorKey: _rootNavigatorKey,
+      builder: (context, state) => const BookSourcePage(),
+    ),
+    GoRoute(
+      path: '/search',
+      parentNavigatorKey: _rootNavigatorKey,
+      builder: (context, state) => const SearchPage(),
+    ),
+    GoRoute(
+      path: '/book-detail',
+      parentNavigatorKey: _rootNavigatorKey,
+      builder: (context, state) {
+        final bookUrl = state.uri.queryParameters['bookUrl'] ?? '';
+        final sourceId = state.uri.queryParameters['sourceId'] ?? '';
+        final bookName = state.uri.queryParameters['bookName'] ?? '';
+        return BookDetailPage(
+          bookUrl: bookUrl,
+          sourceId: sourceId,
+          bookName: bookName,
+        );
+      },
     ),
   ],
 );

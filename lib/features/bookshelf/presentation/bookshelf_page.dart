@@ -58,9 +58,7 @@ class _BookshelfPageState extends ConsumerState<BookshelfPage>
         actions: [
           IconButton(
             icon: const Icon(Icons.search),
-            onPressed: () {
-              // Phase 2: search
-            },
+            onPressed: () => context.push('/search'),
           ),
           IconButton(
             icon: const Icon(Icons.add),
