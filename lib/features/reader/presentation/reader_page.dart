@@ -116,16 +116,39 @@ class _ReaderPageState extends ConsumerState<ReaderPage> {
                     },
                     child: Stack(
                       children: [
-                        TextContentView(
-                          text: pages[pageIndex].text,
-                          fontSize: readingSettings.fontSize,
-                          lineHeight: readingSettings.lineHeight,
-                          textColor: textColor,
-                          backgroundColor: bgColor,
-                          fontFamily: readingSettings.fontFamily,
-                          fontWeight: readingSettings.fontWeight,
-                          firstLineIndent: readingSettings.firstLineIndent,
-                          eyeProtection: readingSettings.eyeProtection,
+                        AnimatedSwitcher(
+                          duration: const Duration(milliseconds: 300),
+                          transitionBuilder: (child, animation) {
+                            switch (readingSettings.pageAnimation) {
+                              case 'fade':
+                                return FadeTransition(
+                                    opacity: animation, child: child);
+                              case 'scroll':
+                              case 'none':
+                                return child;
+                              case 'slide':
+                              default:
+                                return SlideTransition(
+                                  position: Tween<Offset>(
+                                    begin: const Offset(1, 0),
+                                    end: Offset.zero,
+                                  ).animate(animation),
+                                  child: child,
+                                );
+                            }
+                          },
+                          child: TextContentView(
+                            key: ValueKey('$chapterIndex-$pageIndex'),
+                            text: pages[pageIndex].text,
+                            fontSize: readingSettings.fontSize,
+                            lineHeight: readingSettings.lineHeight,
+                            textColor: textColor,
+                            backgroundColor: bgColor,
+                            fontFamily: readingSettings.fontFamily,
+                            fontWeight: readingSettings.fontWeight,
+                            firstLineIndent: readingSettings.firstLineIndent,
+                            eyeProtection: readingSettings.eyeProtection,
+                          ),
                         ),
                         if (readerState.isToolbarVisible)
                           ReaderToolbar(
