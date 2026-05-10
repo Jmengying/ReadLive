@@ -71,32 +71,40 @@ class _BookshelfPageState extends ConsumerState<BookshelfPage>
   }
 
   Future<void> _importFile() async {
-    final result = await FilePicker.platform.pickFiles(
-      type: FileType.custom,
-      allowedExtensions: ['txt', 'epub'],
-    );
-    if (result == null || result.files.isEmpty) return;
+    try {
+      final result = await FilePicker.platform.pickFiles(
+        type: FileType.custom,
+        allowedExtensions: ['txt', 'epub'],
+      );
+      if (result == null || result.files.isEmpty) return;
 
-    final file = result.files.first;
-    final filePath = file.path;
-    if (filePath == null) return;
+      final file = result.files.first;
+      final filePath = file.path;
+      if (filePath == null) return;
 
-    final repo = ref.read(bookRepositoryProvider);
+      final repo = ref.read(bookRepositoryProvider);
 
-    if (filePath.toLowerCase().endsWith('.txt')) {
-      final parser = TxtParser();
-      final book = await parser.importTxtFile(filePath, repo);
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('已导入: ${book.title}')),
-        );
+      if (filePath.toLowerCase().endsWith('.txt')) {
+        final parser = TxtParser();
+        final book = await parser.importTxtFile(filePath, repo);
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text('已导入: ${book.title}')),
+          );
+        }
+      } else if (filePath.toLowerCase().endsWith('.epub')) {
+        final parser = EpubParser();
+        final book = await parser.importEpubFile(filePath, repo);
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text('已导入: ${book.title}')),
+          );
+        }
       }
-    } else if (filePath.toLowerCase().endsWith('.epub')) {
-      final parser = EpubParser();
-      final book = await parser.importEpubFile(filePath, repo);
+    } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('已导入: ${book.title}')),
+          SnackBar(content: Text('导入失败: $e')),
         );
       }
     }
