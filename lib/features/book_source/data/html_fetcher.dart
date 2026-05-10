@@ -44,6 +44,37 @@ class HtmlFetcher {
     throw lastException ?? Exception('Failed to fetch $url');
   }
 
+  /// Fetch via POST request.
+  Future<String> post(
+    String url, {
+    dynamic data,
+    String? encoding,
+    Map<String, String>? headers,
+    CancelToken? cancelToken,
+  }) async {
+    Exception? lastException;
+
+    for (var attempt = 0; attempt < _maxRetries; attempt++) {
+      try {
+        final response = await _client.postHtml(
+          url,
+          data: data,
+          headers: headers,
+          cancelToken: cancelToken,
+        );
+        return response.data ?? '';
+      } on DioException catch (e) {
+        lastException = e;
+        if (e.type == DioExceptionType.cancel) rethrow;
+        if (attempt < _maxRetries - 1) {
+          await Future.delayed(Duration(seconds: 1 << attempt));
+        }
+      }
+    }
+
+    throw lastException ?? Exception('Failed to POST $url');
+  }
+
   /// Fetch raw bytes and decode with specified encoding.
   Future<String> fetchWithEncoding(
     String url,

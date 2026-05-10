@@ -48,7 +48,7 @@ class _TtsControlsState extends State<TtsControls> {
 
   Future<void> _stop() async {
     await _tts.stop();
-    setState(() => _isPlaying = false);
+    if (mounted) setState(() => _isPlaying = false);
   }
 
   @override

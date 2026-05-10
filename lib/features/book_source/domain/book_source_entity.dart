@@ -13,6 +13,7 @@ class BookSourceEntity {
   final String status;
   final int? lastTestedAt;
   final String? groupName;
+  final bool builtIn;
   final int createdAt;
 
   const BookSourceEntity({
@@ -26,6 +27,7 @@ class BookSourceEntity {
     required this.status,
     this.lastTestedAt,
     this.groupName,
+    this.builtIn = false,
     required this.createdAt,
   });
 
@@ -41,6 +43,7 @@ class BookSourceEntity {
       status: data.status,
       lastTestedAt: data.lastTestedAt,
       groupName: data.groupName,
+      builtIn: data.builtIn,
       createdAt: data.createdAt,
     );
   }

@@ -27,6 +27,9 @@ dependencies:
   beautiful_soup_dart: ^0.3.0
   flutter_tts: ^4.2.2
   wakelock_plus: ^1.2.10
+  archive: ^3.6.1
+  syncfusion_flutter_pdf: ^27.1.48
+  fl_chart: ^0.69.0
 
 dev_dependencies:
   flutter_test:
@@ -42,3 +45,5 @@ dev_dependencies:
 
 flutter:
   uses-material-design: true
+  assets:
+    - assets/

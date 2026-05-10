@@ -2,6 +2,7 @@ import 'package:drift/drift.dart';
 import 'package:uuid/uuid.dart';
 import 'package:readlive/core/database/app_database.dart';
 import 'package:readlive/features/bookshelf/domain/book_entity.dart';
+import 'package:readlive/features/book_source/data/content_extractor.dart';
 
 class BookRepository {
   final AppDatabase _db;
@@ -70,11 +71,61 @@ class BookRepository {
     await _db.updateBook(companion);
   }
 
+  Future<void> updateCoverPath(String bookId, String coverPath) async {
+    final book = await _db.getBookById(bookId);
+    if (book == null) return;
+    final companion = book.toCompanion(true).copyWith(
+          coverPath: Value(coverPath),
+        );
+    await _db.updateBook(companion);
+  }
+
   Future<void> insertChapters(
     String bookId,
     List<ChaptersTableCompanion> chapters,
   ) async {
     await _db.deleteChaptersByBook(bookId);
     await _db.insertChapters(chapters);
+  }
+
+  Future<void> updateChapterContent(String chapterId, String content) async {
+    await _db.updateChapterContent(chapterId, content);
+  }
+
+  Future<void> switchSource(
+    String bookId,
+    String newSourceId,
+    String newBookUrl,
+    List<TocEntry> newChapters,
+  ) async {
+    final book = await _db.getBookById(bookId);
+    if (book == null) return;
+
+    // Update book's source info
+    final now = DateTime.now().millisecondsSinceEpoch;
+    final companion = book.toCompanion(true).copyWith(
+      sourceId: Value(newSourceId),
+      bookUrl: Value(newBookUrl),
+      updatedAt: Value(now),
+    );
+    await _db.updateBook(companion);
+
+    // Replace chapters
+    await _db.deleteChaptersByBook(bookId);
+    final uuid = const Uuid();
+    final chapterCompanions = <ChaptersTableCompanion>[];
+    for (var i = 0; i < newChapters.length; i++) {
+      chapterCompanions.add(ChaptersTableCompanion(
+        id: Value(uuid.v4()),
+        bookId: Value(bookId),
+        title: Value(newChapters[i].title),
+        url: Value(newChapters[i].url),
+        content: const Value(null),
+        chapterIndex: Value(i),
+        isCached: const Value(false),
+        createdAt: Value(now),
+      ));
+    }
+    await _db.insertChapters(chapterCompanions);
   }
 }

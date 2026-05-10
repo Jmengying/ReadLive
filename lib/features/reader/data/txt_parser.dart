@@ -68,7 +68,15 @@ class TxtParser {
 
   Future<BookEntity> importTxtFile(String filePath, BookRepository repo) async {
     final file = File(filePath);
+    if (!await file.exists()) {
+      throw Exception('文件不存在: $filePath');
+    }
+
     final bytes = await file.readAsBytes();
+    if (bytes.isEmpty) {
+      throw Exception('文件为空: $filePath');
+    }
+
     final text = _decodeText(bytes);
     final fileName = filePath.split(Platform.pathSeparator).last;
     final title = fileName.replaceAll(RegExp(r'\.txt$', caseSensitive: false), '');

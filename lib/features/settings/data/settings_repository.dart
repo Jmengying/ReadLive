@@ -49,6 +49,14 @@ class SettingsRepository {
   static const _readingKeepScreenOnKey = 'reading_keep_screen_on';
   static const _readingTapZoneLeftKey = 'reading_tap_zone_left';
   static const _readingTapZoneRightKey = 'reading_tap_zone_right';
+  static const _readingNightModeKey = 'reading_night_mode';
+  static const _readingEyeProtectionIntensityKey = 'reading_eye_protection_intensity';
+  static const _readingLetterSpacingKey = 'reading_letter_spacing';
+  static const _readingCustomBgColorKey = 'reading_custom_bg_color';
+  static const _readingBgImagePathKey = 'reading_bg_image_path';
+  static const _accentColorKey = 'accent_color';
+  static const _avatarPathKey = 'avatar_path';
+  static const _signatureKey = 'signature';
 
   Future<int> getReadingBgIndex() async {
     final prefs = await _prefs();
@@ -158,5 +166,93 @@ class SettingsRepository {
   Future<void> setReadingTapZoneRight(double value) async {
     final prefs = await _prefs();
     await prefs.setDouble(_readingTapZoneRightKey, value);
+  }
+
+  Future<bool> getReadingNightMode() async {
+    final prefs = await _prefs();
+    return prefs.getBool(_readingNightModeKey) ?? false;
+  }
+
+  Future<void> setReadingNightMode(bool enabled) async {
+    final prefs = await _prefs();
+    await prefs.setBool(_readingNightModeKey, enabled);
+  }
+
+  Future<double> getReadingEyeProtectionIntensity() async {
+    final prefs = await _prefs();
+    return prefs.getDouble(_readingEyeProtectionIntensityKey) ?? 0.3;
+  }
+
+  Future<void> setReadingEyeProtectionIntensity(double value) async {
+    final prefs = await _prefs();
+    await prefs.setDouble(_readingEyeProtectionIntensityKey, value);
+  }
+
+  Future<double> getReadingLetterSpacing() async {
+    final prefs = await _prefs();
+    return prefs.getDouble(_readingLetterSpacingKey) ?? 0.0;
+  }
+
+  Future<void> setReadingLetterSpacing(double value) async {
+    final prefs = await _prefs();
+    await prefs.setDouble(_readingLetterSpacingKey, value);
+  }
+
+  Future<int> getReadingCustomBgColor() async {
+    final prefs = await _prefs();
+    return prefs.getInt(_readingCustomBgColorKey) ?? -1;
+  }
+
+  Future<void> setReadingCustomBgColor(int value) async {
+    final prefs = await _prefs();
+    await prefs.setInt(_readingCustomBgColorKey, value);
+  }
+
+  Future<String?> getReadingBgImagePath() async {
+    final prefs = await _prefs();
+    return prefs.getString(_readingBgImagePathKey);
+  }
+
+  Future<void> setReadingBgImagePath(String? value) async {
+    final prefs = await _prefs();
+    if (value == null) {
+      await prefs.remove(_readingBgImagePathKey);
+    } else {
+      await prefs.setString(_readingBgImagePathKey, value);
+    }
+  }
+
+  Future<int> getAccentColor() async {
+    final prefs = await _prefs();
+    return prefs.getInt(_accentColorKey) ?? 0xFF8B6914; // Default gold
+  }
+
+  Future<void> setAccentColor(int color) async {
+    final prefs = await _prefs();
+    await prefs.setInt(_accentColorKey, color);
+  }
+
+  Future<String?> getAvatarPath() async {
+    final prefs = await _prefs();
+    return prefs.getString(_avatarPathKey);
+  }
+
+  Future<void> setAvatarPath(String? path) async {
+    final prefs = await _prefs();
+    if (path == null) {
+      await prefs.remove(_avatarPathKey);
+    } else {
+      await prefs.setString(_avatarPathKey, path);
+    }
+  }
+
+  Future<String> getSignature() async {
+    final prefs = await _prefs();
+    return prefs.getString(_signatureKey) ?? '记录每一次阅读';
+  }
+
+  Future<void> setSignature(String value) async {
+    final prefs = await _prefs();
+    await prefs.setString(_signatureKey, value);
   }
 }

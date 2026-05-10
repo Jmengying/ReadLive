@@ -11,9 +11,10 @@ class ReaderToolbar extends StatelessWidget {
   final VoidCallback onShowSettings;
   final VoidCallback onShowBookmarks;
   final VoidCallback onToggleNightMode;
-  final VoidCallback onToggleTts;
-  final VoidCallback onAddBookmark;
+  final VoidCallback? onToggleTts;
+  final VoidCallback? onAddBookmark;
   final ValueChanged<int> onChapterChange;
+  final VoidCallback? onSwitchSource;
 
   const ReaderToolbar({
     super.key,
@@ -27,9 +28,10 @@ class ReaderToolbar extends StatelessWidget {
     required this.onShowSettings,
     required this.onShowBookmarks,
     required this.onToggleNightMode,
-    required this.onToggleTts,
-    required this.onAddBookmark,
+    this.onToggleTts,
+    this.onAddBookmark,
     required this.onChapterChange,
+    this.onSwitchSource,
   });
 
   @override
@@ -113,11 +115,13 @@ class ReaderToolbar extends StatelessWidget {
                     onPressed: onShowBookmarks,
                     tooltip: '书签',
                   ),
+                  if (onAddBookmark != null)
                   IconButton(
                     icon: const Icon(Icons.bookmark_add, color: Colors.white),
                     onPressed: onAddBookmark,
                     tooltip: '添加书签',
                   ),
+                  if (onToggleTts != null)
                   IconButton(
                     icon: const Icon(Icons.volume_up, color: Colors.white),
                     onPressed: onToggleTts,
@@ -133,6 +137,12 @@ class ReaderToolbar extends StatelessWidget {
                     onPressed: onShowSettings,
                     tooltip: '设置',
                   ),
+                  if (onSwitchSource != null)
+                    IconButton(
+                      icon: const Icon(Icons.swap_horiz, color: Colors.white),
+                      onPressed: onSwitchSource,
+                      tooltip: '换源',
+                    ),
                 ],
               ),
             ],

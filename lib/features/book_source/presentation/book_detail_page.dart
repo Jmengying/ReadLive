@@ -1,8 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:drift/drift.dart' hide Column;
+import 'package:uuid/uuid.dart';
+import 'package:readlive/core/database/app_database.dart';
+import 'package:readlive/core/network/url_utils.dart';
 import 'package:readlive/features/book_source/presentation/book_source_provider.dart';
 import 'package:readlive/features/book_source/data/content_extractor.dart';
+import 'package:readlive/features/bookshelf/domain/book_entity.dart';
 import 'package:readlive/features/bookshelf/presentation/bookshelf_provider.dart';
 
 class BookDetailPage extends ConsumerStatefulWidget {
@@ -51,7 +56,7 @@ class _BookDetailPageState extends ConsumerState<BookDetailPage> {
       final extractor = ref.read(contentExtractorProvider);
       final parser = ref.read(ruleParserProvider);
 
-      _resolvedBookUrl = _resolveUrl(source.host, widget.bookUrl);
+      _resolvedBookUrl = resolveUrl(source.host, widget.bookUrl);
 
       final bookHtml = await fetcher.fetch(_resolvedBookUrl!);
 
@@ -61,7 +66,7 @@ class _BookDetailPageState extends ConsumerState<BookDetailPage> {
 
       String tocUrl;
       if (_bookInfo?.tocUrl != null && _bookInfo!.tocUrl!.isNotEmpty) {
-        tocUrl = _resolveUrl(source.host,
+        tocUrl = resolveUrl(source.host,
             parser.resolveTemplate(_bookInfo!.tocUrl!, {'bookUrl': _resolvedBookUrl!}));
       } else {
         tocUrl = _resolvedBookUrl!;
@@ -84,19 +89,6 @@ class _BookDetailPageState extends ConsumerState<BookDetailPage> {
     }
   }
 
-  String _resolveUrl(String host, String url) {
-    if (url.startsWith('http://') || url.startsWith('https://')) {
-      return url;
-    }
-    if (url.startsWith('//')) {
-      return 'https:$url';
-    }
-    if (url.startsWith('/')) {
-      final uri = Uri.parse(host);
-      return '${uri.scheme}://${uri.host}$url';
-    }
-    return '$host/$url';
-  }
 
   @override
   Widget build(BuildContext context) {
@@ -150,7 +142,12 @@ class _BookDetailPageState extends ConsumerState<BookDetailPage> {
                                   ElevatedButton.icon(
                                     icon: const Icon(Icons.add),
                                     label: const Text('加入书架'),
-                                    onPressed: _addToBookshelf,
+                                    onPressed: () async {
+                                      final book = await _addToBookshelf();
+                                      if (book != null && mounted) {
+                                        context.pop();
+                                      }
+                                    },
                                   ),
                                 ],
                               ),
@@ -188,9 +185,7 @@ class _BookDetailPageState extends ConsumerState<BookDetailPage> {
                             dense: true,
                             title: Text(chapter.title,
                                 maxLines: 1, overflow: TextOverflow.ellipsis),
-                            onTap: () {
-                              // Will open reader at this chapter in future
-                            },
+                            onTap: () => _openReader(index),
                           );
                         },
                       ),
@@ -200,7 +195,34 @@ class _BookDetailPageState extends ConsumerState<BookDetailPage> {
     );
   }
 
-  Future<void> _addToBookshelf() async {
+  Future<void> _openReader(int chapterIndex) async {
+    final repo = ref.read(bookRepositoryProvider);
+
+    // Check if already in bookshelf
+    final allBooks = await repo.getAllBooks();
+    BookEntity? existing;
+    for (final b in allBooks) {
+      if (b.sourceId == widget.sourceId && b.bookUrl == _resolvedBookUrl) {
+        existing = b;
+        break;
+      }
+    }
+
+    BookEntity book;
+    if (existing != null) {
+      book = existing;
+    } else {
+      final added = await _addToBookshelf();
+      if (added == null) return;
+      book = added;
+    }
+
+    if (mounted) {
+      context.push('/reader/${book.id}?chapter=$chapterIndex');
+    }
+  }
+
+  Future<BookEntity?> _addToBookshelf() async {
     try {
       final repo = ref.read(bookRepositoryProvider);
       final source = await ref.read(bookSourceRepositoryProvider)
@@ -214,18 +236,39 @@ class _BookDetailPageState extends ConsumerState<BookDetailPage> {
         contentType: source?.contentType ?? 'novel',
       );
 
+      // Save chapter list to database
+      if (_chapters.isNotEmpty) {
+        final uuid = const Uuid();
+        final now = DateTime.now().millisecondsSinceEpoch;
+        final companions = <ChaptersTableCompanion>[];
+        for (var i = 0; i < _chapters.length; i++) {
+          companions.add(ChaptersTableCompanion(
+            id: Value(uuid.v4()),
+            bookId: Value(book.id),
+            title: Value(_chapters[i].title),
+            url: Value(_chapters[i].url),
+            content: const Value(null),
+            chapterIndex: Value(i),
+            isCached: const Value(false),
+            createdAt: Value(now),
+          ));
+        }
+        await repo.insertChapters(book.id, companions);
+      }
+
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text('已加入书架: ${book.title}')),
         );
-        context.pop();
       }
+      return book;
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text('加入书架失败: $e')),
         );
       }
+      return null;
     }
   }
 }

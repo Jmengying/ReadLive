@@ -1,9 +1,12 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:readlive/core/network/url_utils.dart';
 import 'package:readlive/features/bookshelf/presentation/bookshelf_provider.dart';
 import 'package:readlive/features/book_source/data/book_source_repository.dart';
+import 'package:readlive/features/book_source/data/chapter_crawler.dart';
 import 'package:readlive/features/book_source/data/content_extractor.dart';
 import 'package:readlive/features/book_source/data/html_fetcher.dart';
 import 'package:readlive/features/book_source/data/rule_parser.dart';
+import 'package:readlive/features/book_source/data/source_tester.dart';
 import 'package:readlive/features/book_source/domain/book_source_entity.dart';
 import 'package:readlive/features/book_source/domain/search_result.dart';
 
@@ -12,6 +15,21 @@ final ruleParserProvider = Provider<RuleParser>((ref) => RuleParser());
 final htmlFetcherProvider = Provider<HtmlFetcher>((ref) => HtmlFetcher());
 final contentExtractorProvider = Provider<ContentExtractor>((ref) {
   return ContentExtractor(ruleParser: ref.watch(ruleParserProvider));
+});
+
+final chapterCrawlerProvider = Provider<ChapterCrawler>((ref) {
+  return ChapterCrawler(
+    fetcher: ref.watch(htmlFetcherProvider),
+    extractor: ref.watch(contentExtractorProvider),
+  );
+});
+
+final sourceTesterProvider = Provider<SourceTester>((ref) {
+  return SourceTester(
+    fetcher: ref.watch(htmlFetcherProvider),
+    extractor: ref.watch(contentExtractorProvider),
+    parser: ref.watch(ruleParserProvider),
+  );
 });
 
 // Repository
@@ -73,36 +91,53 @@ class SearchNotifier extends StateNotifier<SearchState> {
   Future<void> search(String query) async {
     if (query.trim().isEmpty) return;
 
-    state = state.copyWith(query: query, isLoading: true, error: null);
+    state = state.copyWith(query: query, isLoading: true, error: null, results: []);
 
     try {
       final sources = await _repo.getEnabledSources();
-      final allResults = <SearchResult>[];
 
       for (final source in sources) {
         try {
           final rule = source.parseRule();
           if (rule.search == null) continue;
 
-          final url = _parser.resolveTemplate(
+          final rawUrl = _parser.resolveTemplate(
             rule.search!.url,
             {'key': query, 'page': '1'},
           );
 
-          final html = await _fetcher.fetch(url);
+          // Handle @post: prefix (Legado format)
+          final String html;
+          if (rawUrl.startsWith('@post:')) {
+            final postBody = rawUrl.substring(6);
+            final parts = postBody.split(',');
+            final postUrl = resolveUrl(source.host, parts.first.trim());
+            final postData = parts.length > 1 ? parts.sublist(1).join(',').trim() : null;
+            html = await _fetcher.post(postUrl, data: postData);
+          } else {
+            final url = resolveUrl(source.host, rawUrl);
+            html = await _fetcher.fetch(url);
+          }
+
           final results = _extractor.extractSearchResults(
             html,
             rule.search!,
             source.id,
             source.name,
           );
-          allResults.addAll(results);
+
+          // Update state incrementally - show results as they come in
+          if (results.isNotEmpty) {
+            state = state.copyWith(
+              results: [...state.results, ...results],
+            );
+          }
         } catch (_) {
           // Skip failed sources, continue with others
         }
       }
 
-      state = state.copyWith(results: allResults, isLoading: false);
+      state = state.copyWith(isLoading: false);
     } catch (e) {
       state = state.copyWith(
         isLoading: false,

@@ -1,12 +1,15 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:readlive/features/bookshelf/presentation/bookshelf_page.dart';
+import 'package:readlive/features/bookshelf/presentation/groups_page.dart';
 import 'package:readlive/features/profile/presentation/profile_page.dart';
 import 'package:readlive/features/reader/presentation/reader_page.dart';
 import 'package:readlive/features/settings/presentation/settings_page.dart';
 import 'package:readlive/features/book_source/presentation/book_source_page.dart';
 import 'package:readlive/features/book_source/presentation/search_page.dart';
 import 'package:readlive/features/book_source/presentation/book_detail_page.dart';
+import 'package:readlive/features/book_source/presentation/source_edit_page.dart';
+import 'package:readlive/features/profile/presentation/stats_page.dart';
 
 final _rootNavigatorKey = GlobalKey<NavigatorState>();
 final _shellNavigatorKey = GlobalKey<NavigatorState>();
@@ -42,9 +45,17 @@ final appRouter = GoRouter(
     GoRoute(
       path: '/reader/:bookId',
       parentNavigatorKey: _rootNavigatorKey,
-      builder: (context, state) => ReaderPage(
-        bookId: state.pathParameters['bookId']!,
-      ),
+      builder: (context, state) {
+        final bookId = state.pathParameters['bookId']!;
+        final chapterIndex = int.tryParse(
+            state.uri.queryParameters['chapter'] ?? '0') ?? 0;
+        return ReaderPage(bookId: bookId, initialChapter: chapterIndex);
+      },
+    ),
+    GoRoute(
+      path: '/groups',
+      parentNavigatorKey: _rootNavigatorKey,
+      builder: (context, state) => const GroupsPage(),
     ),
     GoRoute(
       path: '/settings',
@@ -60,6 +71,19 @@ final appRouter = GoRouter(
       path: '/search',
       parentNavigatorKey: _rootNavigatorKey,
       builder: (context, state) => const SearchPage(),
+    ),
+    GoRoute(
+      path: '/source-edit',
+      parentNavigatorKey: _rootNavigatorKey,
+      builder: (context, state) {
+        final sourceId = state.uri.queryParameters['sourceId'] ?? '';
+        return SourceEditPage(sourceId: sourceId);
+      },
+    ),
+    GoRoute(
+      path: '/stats',
+      parentNavigatorKey: _rootNavigatorKey,
+      builder: (context, state) => const StatsPage(),
     ),
     GoRoute(
       path: '/book-detail',

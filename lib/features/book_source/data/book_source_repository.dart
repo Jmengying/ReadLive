@@ -39,6 +39,7 @@ class BookSourceRepository {
     String contentType = 'novel',
     int weight = 100,
     String? groupName,
+    bool builtIn = false,
   }) async {
     final now = DateTime.now().millisecondsSinceEpoch;
     final id = _uuid.v4();
@@ -54,6 +55,7 @@ class BookSourceRepository {
       ruleJson: Value(ruleJson),
       status: const Value('active'),
       groupName: Value(groupName),
+      builtIn: Value(builtIn),
       createdAt: Value(now),
     );
 
@@ -73,6 +75,7 @@ class BookSourceRepository {
       status: Value(source.status),
       lastTestedAt: Value(source.lastTestedAt),
       groupName: Value(source.groupName),
+      builtIn: Value(source.builtIn),
       createdAt: Value(source.createdAt),
     );
     await _db.updateBookSource(companion);
@@ -96,13 +99,35 @@ class BookSourceRepository {
       status: source.status,
       lastTestedAt: source.lastTestedAt,
       groupName: source.groupName,
+      builtIn: source.builtIn,
+      createdAt: source.createdAt,
+    );
+    await updateSource(updated);
+  }
+
+  Future<void> updateSourceStatus(String id, String status) async {
+    final source = await getSourceById(id);
+    if (source == null) return;
+    final updated = BookSourceEntity(
+      id: source.id,
+      name: source.name,
+      host: source.host,
+      contentType: source.contentType,
+      enabled: source.enabled,
+      weight: source.weight,
+      ruleJson: source.ruleJson,
+      status: status,
+      lastTestedAt: DateTime.now().millisecondsSinceEpoch,
+      groupName: source.groupName,
+      builtIn: source.builtIn,
       createdAt: source.createdAt,
     );
     await updateSource(updated);
   }
 
   /// Import a source from a JSON string (single source or array).
-  Future<int> importFromJson(String jsonStr) async {
+  /// Returns (successCount, errorMessages).
+  Future<(int, List<String>)> importFromJson(String jsonStr, {bool builtIn = false}) async {
     final dynamic decoded = jsonDecode(jsonStr);
     final List<dynamic> list;
     if (decoded is List) {
@@ -110,24 +135,41 @@ class BookSourceRepository {
     } else if (decoded is Map<String, dynamic>) {
       list = [decoded];
     } else {
-      return 0;
+      return (0, ['无效的 JSON 格式']);
     }
 
     var count = 0;
-    for (final item in list) {
-      if (item is Map<String, dynamic>) {
+    final errors = <String>[];
+    for (var i = 0; i < list.length; i++) {
+      final item = list[i];
+      if (item is! Map<String, dynamic>) {
+        errors.add('第 ${i + 1} 项不是有效的对象');
+        continue;
+      }
+      try {
         final rule = SourceRule.fromJson(item);
+        if (rule.name.trim().isEmpty) {
+          errors.add('第 ${i + 1} 项: name 为空');
+          continue;
+        }
+        if (rule.host.trim().isEmpty) {
+          errors.add('第 ${i + 1} 项: host 为空');
+          continue;
+        }
         await addSource(
-          name: rule.name,
-          host: rule.host,
+          name: rule.name.trim(),
+          host: rule.host.trim(),
           rule: rule,
           contentType: rule.contentType,
           weight: rule.weight,
+          builtIn: builtIn,
         );
         count++;
+      } catch (e) {
+        errors.add('第 ${i + 1} 项: $e');
       }
     }
-    return count;
+    return (count, errors);
   }
 
   /// Export all sources as a JSON string.
@@ -135,5 +177,48 @@ class BookSourceRepository {
     final sources = await getAllSources();
     final rules = sources.map((s) => s.parseRule().toJson()).toList();
     return const JsonEncoder.withIndent('  ').convert(rules);
+  }
+
+  /// Delete multiple sources by ID.
+  Future<void> deleteSources(List<String> ids) async {
+    for (final id in ids) {
+      await _db.deleteBookSource(id);
+    }
+  }
+
+  /// Enable/disable multiple sources.
+  Future<void> toggleSources(List<String> ids, bool enabled) async {
+    for (final id in ids) {
+      await toggleEnabled(id, enabled);
+    }
+  }
+
+  /// Remove duplicate sources by host, keeping the one with highest weight.
+  /// Built-in sources are never removed.
+  Future<int> deduplicate() async {
+    final sources = await getAllSources();
+    final byHost = <String, List<BookSourceEntity>>{};
+    for (final s in sources) {
+      final key = s.host.toLowerCase().replaceAll(RegExp(r'^https?://'), '');
+      byHost.putIfAbsent(key, () => []).add(s);
+    }
+
+    var removed = 0;
+    for (final group in byHost.values) {
+      if (group.length <= 1) continue;
+      // Sort by weight descending, built-in first
+      group.sort((a, b) {
+        if (a.builtIn != b.builtIn) return a.builtIn ? -1 : 1;
+        return b.weight.compareTo(a.weight);
+      });
+      // Remove non-built-in duplicates, keeping the first (highest weight or built-in)
+      for (var i = 1; i < group.length; i++) {
+        if (!group[i].builtIn) {
+          await _db.deleteBookSource(group[i].id);
+          removed++;
+        }
+      }
+    }
+    return removed;
   }
 }

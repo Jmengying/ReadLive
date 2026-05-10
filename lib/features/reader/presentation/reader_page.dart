@@ -1,20 +1,30 @@
+import 'dart:async';
+import 'dart:convert';
+import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:drift/drift.dart' hide Column;
+import 'package:uuid/uuid.dart';
 import 'package:wakelock_plus/wakelock_plus.dart';
+import 'package:readlive/core/database/app_database.dart';
 import 'package:readlive/core/theme/app_theme.dart';
+import 'package:readlive/features/bookshelf/presentation/bookshelf_provider.dart';
 import 'package:readlive/features/settings/presentation/settings_provider.dart';
 import 'package:readlive/features/reader/domain/chapter_entity.dart';
 import 'package:readlive/features/reader/presentation/reader_provider.dart';
 import 'package:readlive/features/reader/presentation/widgets/text_content_view.dart';
+import 'package:readlive/features/reader/presentation/widgets/manga_content_view.dart';
 import 'package:readlive/features/reader/presentation/widgets/reader_toolbar.dart';
 import 'package:readlive/features/reader/presentation/widgets/reading_settings_panel.dart';
+import 'package:readlive/features/book_source/presentation/switch_source_sheet.dart';
 import 'package:readlive/features/reader/presentation/widgets/bookmark_list_sheet.dart';
 import 'package:readlive/features/reader/presentation/widgets/tts_controls.dart';
 
 class ReaderPage extends ConsumerStatefulWidget {
   final String bookId;
-  const ReaderPage({super.key, required this.bookId});
+  final int initialChapter;
+  const ReaderPage({super.key, required this.bookId, this.initialChapter = 0});
 
   @override
   ConsumerState<ReaderPage> createState() => _ReaderPageState();
@@ -22,12 +32,28 @@ class ReaderPage extends ConsumerStatefulWidget {
 
 class _ReaderPageState extends ConsumerState<ReaderPage> {
   bool _showTts = false;
-  bool _isNightMode = false;
+  final ScrollController _scrollController = ScrollController();
+  int _lastScrollChapterIndex = -1;
+  int _overscrollTopCount = 0;
+  int _overscrollBottomCount = 0;
+  DateTime _lastOverscrollTop = DateTime.fromMillisecondsSinceEpoch(0);
+  DateTime _lastOverscrollBottom = DateTime.fromMillisecondsSinceEpoch(0);
+  late DateTime _segmentStartTime;
+  Timer? _saveTimer;
 
   @override
   void initState() {
     super.initState();
+    _segmentStartTime = DateTime.now();
     _enableWakelock();
+    // Save reading session every 30 seconds
+    _saveTimer = Timer.periodic(const Duration(seconds: 30), (_) => _saveSegment());
+    if (widget.initialChapter > 0) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        ref.read(readerNotifierProvider(widget.bookId).notifier)
+            .setChapter(widget.initialChapter);
+      });
+    }
     ref.listenManual(readingSettingsProvider, (prev, next) {
       if (prev?.keepScreenOn != next.keepScreenOn) {
         if (next.keepScreenOn) {
@@ -41,8 +67,74 @@ class _ReaderPageState extends ConsumerState<ReaderPage> {
 
   @override
   void dispose() {
+    _saveTimer?.cancel();
+    // Save final segment before disposing
+    _saveSegmentSync();
+    _scrollController.dispose();
     WakelockPlus.disable();
     super.dispose();
+  }
+
+  void _saveSegmentSync() {
+    try {
+      final now = DateTime.now();
+      final durationSeconds = now.difference(_segmentStartTime).inSeconds;
+      if (durationSeconds < 3) return;
+
+      int wordsRead = 0;
+      final chaptersValue = ref.read(chaptersProvider(widget.bookId)).valueOrNull;
+      if (chaptersValue != null) {
+        final readerState = ref.read(readerNotifierProvider(widget.bookId));
+        final idx = readerState.currentChapterIndex.clamp(0, chaptersValue.length - 1);
+        wordsRead = (chaptersValue[idx].content ?? '').length;
+      }
+
+      final db = ref.read(databaseProvider);
+      db.insertReadingSession(ReadingSessionsTableCompanion(
+        id: Value(const Uuid().v4()),
+        bookId: Value(widget.bookId),
+        startTime: Value(_segmentStartTime.millisecondsSinceEpoch),
+        endTime: Value(now.millisecondsSinceEpoch),
+        durationSeconds: Value(durationSeconds),
+        wordsRead: Value(wordsRead),
+      ));
+
+      // Reset for next segment
+      _segmentStartTime = now;
+      // Bump refresh counter synchronously
+      ref.read(statsRefreshProvider.notifier).state++;
+    } catch (_) {
+      // Ignore errors during dispose
+    }
+  }
+
+  void _saveSegment() {
+    final now = DateTime.now();
+    final durationSeconds = now.difference(_segmentStartTime).inSeconds;
+    if (durationSeconds < 3) return;
+
+    int wordsRead = 0;
+    final chaptersValue = ref.read(chaptersProvider(widget.bookId)).valueOrNull;
+    if (chaptersValue != null) {
+      final readerState = ref.read(readerNotifierProvider(widget.bookId));
+      final idx = readerState.currentChapterIndex.clamp(0, chaptersValue.length - 1);
+      wordsRead = (chaptersValue[idx].content ?? '').length;
+    }
+
+    final db = ref.read(databaseProvider);
+    db.insertReadingSession(ReadingSessionsTableCompanion(
+      id: Value(const Uuid().v4()),
+      bookId: Value(widget.bookId),
+      startTime: Value(_segmentStartTime.millisecondsSinceEpoch),
+      endTime: Value(now.millisecondsSinceEpoch),
+      durationSeconds: Value(durationSeconds),
+      wordsRead: Value(wordsRead),
+    ));
+
+    // Reset for next segment
+    _segmentStartTime = now;
+    // Bump refresh counter synchronously
+    ref.read(statsRefreshProvider.notifier).state++;
   }
 
   Future<void> _enableWakelock() async {
@@ -60,11 +152,20 @@ class _ReaderPageState extends ConsumerState<ReaderPage> {
     final notifier = ref.read(readerNotifierProvider(widget.bookId).notifier);
     final readingSettings = ref.watch(readingSettingsProvider);
 
-    final bgIndex = _isNightMode ? 4 : readingSettings.bgIndex;
-    final bgColor = AppTheme.readingBackgrounds[bgIndex];
-    final textColor = bgIndex >= 3
+    final bgIndex = readingSettings.isNightMode ? 4 : readingSettings.bgIndex;
+    final Color bgColor;
+    if (!readingSettings.isNightMode && readingSettings.customBgColor >= 0) {
+      bgColor = Color(readingSettings.customBgColor);
+    } else {
+      bgColor = AppTheme.readingBackgrounds[bgIndex];
+    }
+    final textColor = ThemeData.estimateBrightnessForColor(bgColor) == Brightness.dark
         ? AppTheme.readingTextColors[1]
         : AppTheme.readingTextColors[0];
+
+    // Brightness overlay: darken screen when brightness < 1.0
+    final brightnessValue = readingSettings.brightness;
+    final showBrightnessOverlay = brightnessValue >= 0 && brightnessValue < 1.0;
 
     return Scaffold(
       body: bookAsync.when(
@@ -86,7 +187,338 @@ class _ReaderPageState extends ConsumerState<ReaderPage> {
               final chapterIndex = readerState.currentChapterIndex.clamp(
                   0, chapters.length - 1);
               final screenSize = MediaQuery.of(context).size;
+              final isScrollMode = readingSettings.pageAnimation == 'scroll';
 
+              // Reset scroll position when chapter changes in scroll mode
+              if (isScrollMode && _lastScrollChapterIndex != chapterIndex) {
+                _lastScrollChapterIndex = chapterIndex;
+                if (_scrollController.hasClients) {
+                  _scrollController.jumpTo(0);
+                }
+              }
+
+              if (isScrollMode) {
+                // Scroll mode: show entire chapter with vertical scrolling
+                final contentAsync = ref.watch(chapterContentProvider((
+                  bookId: widget.bookId,
+                  chapterIndex: chapterIndex,
+                )));
+
+                // Reset overscroll counters when chapter changes
+                if (_lastScrollChapterIndex != chapterIndex) {
+                  _overscrollTopCount = 0;
+                  _overscrollBottomCount = 0;
+                }
+
+                return contentAsync.when(
+                  loading: () => Container(
+                    color: bgColor,
+                    child: Center(
+                      child: Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          const CircularProgressIndicator(),
+                          const SizedBox(height: 16),
+                          Text('正在加载章节内容...',
+                              style: TextStyle(color: textColor)),
+                        ],
+                      ),
+                    ),
+                  ),
+                  error: (e, _) => Container(
+                    color: bgColor,
+                    child: Center(
+                      child: Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Icon(Icons.error_outline,
+                              size: 48, color: Theme.of(context).colorScheme.error),
+                          const SizedBox(height: 16),
+                          Text('加载失败: $e',
+                              style: TextStyle(color: textColor)),
+                          const SizedBox(height: 16),
+                          ElevatedButton.icon(
+                            icon: const Icon(Icons.refresh),
+                            label: const Text('重试'),
+                            onPressed: () => ref.invalidate(
+                                chapterContentProvider((
+                              bookId: widget.bookId,
+                              chapterIndex: chapterIndex,
+                            ))),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                  data: (chapterContent) {
+                    final isManga = book.contentType == 'manga';
+
+                    return GestureDetector(
+                      onTapUp: (details) {
+                        if (isManga) {
+                          _handleMangaTap(details, screenSize, notifier);
+                        } else {
+                          _handleScrollTap(
+                              details, screenSize, notifier, readingSettings,
+                              chapterIndex, chapters.length);
+                        }
+                      },
+                      onDoubleTap: () {
+                        if (readerState.isLocked) notifier.toggleLock();
+                      },
+                      child: Stack(
+                        children: [
+                          _buildBackgroundContainer(
+                            bgColor: bgColor,
+                            bgImagePath: readingSettings.bgImagePath,
+                            child: isManga
+                                ? MangaContentView(
+                                    imageUrls: _parseImageUrls(chapterContent),
+                                    readingMode: 'scroll',
+                                    backgroundColor: bgColor,
+                                  )
+                                : NotificationListener<ScrollNotification>(
+                              onNotification: (notification) {
+                                if (notification is OverscrollNotification &&
+                                    !readerState.isLocked) {
+                                  final now = DateTime.now();
+                                  if (notification.overscroll < -50 &&
+                                      chapterIndex > 0) {
+                                    if (now.difference(_lastOverscrollTop).inMilliseconds < 800) {
+                                      _overscrollTopCount++;
+                                    } else {
+                                      _overscrollTopCount = 1;
+                                    }
+                                    _lastOverscrollTop = now;
+                                    if (_overscrollTopCount >= 2) {
+                                      _overscrollTopCount = 0;
+                                      notifier.setChapter(chapterIndex - 1);
+                                    }
+                                  } else if (notification.overscroll > 50 &&
+                                      chapterIndex < chapters.length - 1) {
+                                    if (now.difference(_lastOverscrollBottom).inMilliseconds < 800) {
+                                      _overscrollBottomCount++;
+                                    } else {
+                                      _overscrollBottomCount = 1;
+                                    }
+                                    _lastOverscrollBottom = now;
+                                    if (_overscrollBottomCount >= 2) {
+                                      _overscrollBottomCount = 0;
+                                      notifier.setChapter(chapterIndex + 1);
+                                    }
+                                  }
+                                }
+                                return false;
+                              },
+                              child: SingleChildScrollView(
+                                controller: _scrollController,
+                                padding: const EdgeInsets.all(16),
+                                child: TextContentView(
+                                  text: chapterContent,
+                                  fontSize: readingSettings.fontSize,
+                                  lineHeight: readingSettings.lineHeight,
+                                  textColor: textColor,
+                                  backgroundColor: bgColor,
+                                  fontFamily: readingSettings.fontFamily,
+                                  fontWeight: readingSettings.fontWeight,
+                                  firstLineIndent: readingSettings.firstLineIndent,
+                                  letterSpacing: readingSettings.letterSpacing,
+                                  eyeProtection: readingSettings.eyeProtection,
+                                  eyeProtectionIntensity: readingSettings.eyeProtectionIntensity,
+                                  scrollable: false,
+                                ),
+                              ),
+                            ),
+                          ),
+                          if (readerState.isToolbarVisible)
+                            ReaderToolbar(
+                              bookTitle: book.title,
+                              currentChapter: chapterIndex,
+                              totalChapters: chapters.length,
+                              isLocked: readerState.isLocked,
+                              onBack: () => context.pop(),
+                              onToggleLock: notifier.toggleLock,
+                              onShowChapters: () => _showChapterDrawer(chapters),
+                              onShowSettings: () => _showSettingsPanel(),
+                              onShowBookmarks: () =>
+                                  _showBookmarkSheet(chapters[chapterIndex]),
+                              onToggleNightMode: _toggleNightMode,
+                              onToggleTts: _toggleTts,
+                              onAddBookmark: () =>
+                                  _addBookmark(chapters[chapterIndex], 0),
+                              onChapterChange: (index) {
+                                notifier.setChapter(index);
+                              },
+                              onSwitchSource: book.sourceId != null
+                                  ? () => _showSwitchSourceSheet(book)
+                                  : null,
+                            ),
+                          if (readerState.isLocked)
+                            Positioned(
+                              top: MediaQuery.of(context).padding.top + 8,
+                              left: 0,
+                              right: 0,
+                              child: Center(
+                                child: Container(
+                                  padding: const EdgeInsets.symmetric(
+                                      horizontal: 12, vertical: 6),
+                                  decoration: BoxDecoration(
+                                    color: Colors.black54,
+                                    borderRadius: BorderRadius.circular(16),
+                                  ),
+                                  child: const Row(
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: [
+                                      Icon(Icons.lock,
+                                          color: Colors.white, size: 16),
+                                      SizedBox(width: 4),
+                                      Text('已锁定',
+                                          style: TextStyle(
+                                              color: Colors.white, fontSize: 12)),
+                                    ],
+                                  ),
+                                ),
+                              ),
+                            ),
+                          if (_showTts && !isManga)
+                            Positioned(
+                              left: 0,
+                              right: 0,
+                              bottom: 0,
+                              child: TtsControls(
+                                text: chapterContent,
+                                onClose: () => setState(() => _showTts = false),
+                              ),
+                            ),
+                          if (showBrightnessOverlay)
+                            IgnorePointer(
+                              child: Container(
+                                color: Color.fromRGBO(0, 0, 0, 1.0 - brightnessValue),
+                                width: double.infinity,
+                                height: double.infinity,
+                              ),
+                            ),
+                        ],
+                      ),
+                    );
+                  },
+                );
+              }
+
+              // Manga page mode: use MangaContentView with PageView
+              if (book.contentType == 'manga') {
+                final contentAsync = ref.watch(chapterContentProvider((
+                  bookId: widget.bookId,
+                  chapterIndex: chapterIndex,
+                )));
+
+                return contentAsync.when(
+                  loading: () => Container(
+                    color: bgColor,
+                    child: const Center(child: CircularProgressIndicator()),
+                  ),
+                  error: (e, _) => Container(
+                    color: bgColor,
+                    child: Center(
+                      child: Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Icon(Icons.error_outline,
+                              size: 48, color: Theme.of(context).colorScheme.error),
+                          const SizedBox(height: 16),
+                          Text('加载失败: $e', style: TextStyle(color: textColor)),
+                          const SizedBox(height: 16),
+                          ElevatedButton.icon(
+                            icon: const Icon(Icons.refresh),
+                            label: const Text('重试'),
+                            onPressed: () => ref.invalidate(chapterContentProvider((
+                              bookId: widget.bookId,
+                              chapterIndex: chapterIndex,
+                            ))),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                  data: (chapterContent) {
+                    final imageUrls = _parseImageUrls(chapterContent);
+                    final mangaPage = readerState.currentPageIndex.clamp(
+                        0, imageUrls.isEmpty ? 0 : imageUrls.length - 1);
+
+                    return GestureDetector(
+                      onTapUp: (details) => _handleMangaTap(
+                          details, screenSize, notifier),
+                      onDoubleTap: () {
+                        if (readerState.isLocked) notifier.toggleLock();
+                      },
+                      child: Stack(
+                        children: [
+                          MangaContentView(
+                            imageUrls: imageUrls,
+                            readingMode: 'page',
+                            initialPage: mangaPage,
+                            backgroundColor: bgColor,
+                            onPageChanged: (index) {
+                              notifier.setPage(index);
+                              notifier.saveProgress(
+                                  chapterIndex, index, imageUrls.length);
+                            },
+                          ),
+                          if (readerState.isToolbarVisible)
+                            ReaderToolbar(
+                              bookTitle: book.title,
+                              currentChapter: chapterIndex,
+                              totalChapters: chapters.length,
+                              isLocked: readerState.isLocked,
+                              onBack: () => context.pop(),
+                              onToggleLock: notifier.toggleLock,
+                              onShowChapters: () => _showChapterDrawer(chapters),
+                              onShowSettings: () => _showSettingsPanel(),
+                              onShowBookmarks: () =>
+                                  _showBookmarkSheet(chapters[chapterIndex]),
+                              onToggleNightMode: _toggleNightMode,
+                              onChapterChange: (index) {
+                                notifier.setChapter(index);
+                              },
+                              onSwitchSource: book.sourceId != null
+                                  ? () => _showSwitchSourceSheet(book)
+                                  : null,
+                            ),
+                          if (readerState.isLocked)
+                            Positioned(
+                              top: MediaQuery.of(context).padding.top + 8,
+                              left: 0,
+                              right: 0,
+                              child: Center(
+                                child: Container(
+                                  padding: const EdgeInsets.symmetric(
+                                      horizontal: 12, vertical: 6),
+                                  decoration: BoxDecoration(
+                                    color: Colors.black54,
+                                    borderRadius: BorderRadius.circular(16),
+                                  ),
+                                  child: const Row(
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: [
+                                      Icon(Icons.lock,
+                                          color: Colors.white, size: 16),
+                                      SizedBox(width: 4),
+                                      Text('已锁定',
+                                          style: TextStyle(
+                                              color: Colors.white, fontSize: 12)),
+                                    ],
+                                  ),
+                                ),
+                              ),
+                            ),
+                        ],
+                      ),
+                    );
+                  },
+                );
+              }
+
+              // Page mode: paginated reading with swipe gestures
               final pagesAsync = ref.watch(chapterPagesProvider((
                 bookId: widget.bookId,
                 chapterIndex: chapterIndex,
@@ -95,8 +527,46 @@ class _ReaderPageState extends ConsumerState<ReaderPage> {
               )));
 
               return pagesAsync.when(
-                loading: () => const Center(child: CircularProgressIndicator()),
-                error: (e, _) => Center(child: Text('分页失败: $e')),
+                loading: () => Container(
+                  color: bgColor,
+                  child: Center(
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        const CircularProgressIndicator(),
+                        const SizedBox(height: 16),
+                        Text('正在加载章节内容...',
+                            style: TextStyle(color: textColor)),
+                      ],
+                    ),
+                  ),
+                ),
+                error: (e, _) => Container(
+                  color: bgColor,
+                  child: Center(
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Icon(Icons.error_outline,
+                            size: 48, color: Theme.of(context).colorScheme.error),
+                        const SizedBox(height: 16),
+                        Text('加载失败: $e',
+                            style: TextStyle(color: textColor)),
+                        const SizedBox(height: 16),
+                        ElevatedButton.icon(
+                          icon: const Icon(Icons.refresh),
+                          label: const Text('重试'),
+                          onPressed: () => ref.invalidate(chapterPagesProvider((
+                            bookId: widget.bookId,
+                            chapterIndex: chapterIndex,
+                            screenWidth: screenSize.width,
+                            screenHeight: screenSize.height,
+                          ))),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
                 data: (pages) {
                   if (pages.isEmpty) {
                     return const Center(child: Text('章节内容为空'));
@@ -114,16 +584,27 @@ class _ReaderPageState extends ConsumerState<ReaderPage> {
                         notifier.toggleLock();
                       }
                     },
+                    onHorizontalDragEnd: (details) {
+                      if (readerState.isLocked) return;
+                      final velocity = details.primaryVelocity ?? 0;
+                      if (velocity < -200) {
+                        notifier.nextPage(pages.length);
+                      } else if (velocity > 200) {
+                        notifier.previousPage();
+                      }
+                    },
                     child: Stack(
                       children: [
-                        AnimatedSwitcher(
+                        _buildBackgroundContainer(
+                          bgColor: bgColor,
+                          bgImagePath: readingSettings.bgImagePath,
+                          child: AnimatedSwitcher(
                           duration: const Duration(milliseconds: 300),
                           transitionBuilder: (child, animation) {
                             switch (readingSettings.pageAnimation) {
                               case 'fade':
                                 return FadeTransition(
                                     opacity: animation, child: child);
-                              case 'scroll':
                               case 'none':
                                 return child;
                               case 'slide':
@@ -143,12 +624,18 @@ class _ReaderPageState extends ConsumerState<ReaderPage> {
                             fontSize: readingSettings.fontSize,
                             lineHeight: readingSettings.lineHeight,
                             textColor: textColor,
-                            backgroundColor: bgColor,
+                            backgroundColor: readingSettings.bgImagePath != null &&
+                                    readingSettings.bgImagePath!.isNotEmpty
+                                ? Colors.transparent
+                                : bgColor,
                             fontFamily: readingSettings.fontFamily,
                             fontWeight: readingSettings.fontWeight,
                             firstLineIndent: readingSettings.firstLineIndent,
+                            letterSpacing: readingSettings.letterSpacing,
                             eyeProtection: readingSettings.eyeProtection,
+                            eyeProtectionIntensity: readingSettings.eyeProtectionIntensity,
                           ),
+                        ),
                         ),
                         if (readerState.isToolbarVisible)
                           ReaderToolbar(
@@ -170,6 +657,9 @@ class _ReaderPageState extends ConsumerState<ReaderPage> {
                             onChapterChange: (index) {
                               notifier.setChapter(index);
                             },
+                            onSwitchSource: book.sourceId != null
+                                ? () => _showSwitchSourceSheet(book)
+                                : null,
                           ),
                         if (readerState.isLocked)
                           Positioned(
@@ -209,6 +699,14 @@ class _ReaderPageState extends ConsumerState<ReaderPage> {
                               onClose: () => setState(() => _showTts = false),
                             ),
                           ),
+                        if (showBrightnessOverlay)
+                          IgnorePointer(
+                            child: Container(
+                              color: Color.fromRGBO(0, 0, 0, 1.0 - brightnessValue),
+                              width: double.infinity,
+                              height: double.infinity,
+                            ),
+                          ),
                       ],
                     ),
                   );
@@ -218,6 +716,35 @@ class _ReaderPageState extends ConsumerState<ReaderPage> {
           );
         },
       ),
+    );
+  }
+
+  Widget _buildBackgroundContainer({
+    required Color bgColor,
+    required Widget child,
+    String? bgImagePath,
+  }) {
+    if (bgImagePath != null && bgImagePath.isNotEmpty) {
+      final file = File(bgImagePath);
+      if (file.existsSync()) {
+        return Container(
+          width: double.infinity,
+          height: double.infinity,
+          decoration: BoxDecoration(
+            image: DecorationImage(
+              image: FileImage(file),
+              fit: BoxFit.cover,
+            ),
+          ),
+          child: child,
+        );
+      }
+    }
+    return Container(
+      color: bgColor,
+      width: double.infinity,
+      height: double.infinity,
+      child: child,
     );
   }
 
@@ -240,6 +767,74 @@ class _ReaderPageState extends ConsumerState<ReaderPage> {
     } else {
       notifier.toggleToolbar();
     }
+  }
+
+  void _handleScrollTap(TapUpDetails details, Size screenSize,
+      ReaderNotifier notifier, ReadingSettings settings,
+      int chapterIndex, int totalChapters) {
+    if (ref.read(readerNotifierProvider(widget.bookId)).isLocked) return;
+
+    final dy = details.globalPosition.dy;
+    final height = screenSize.height;
+    final dx = details.globalPosition.dx;
+    final width = screenSize.width;
+
+    // Center area: toggle toolbar
+    final leftBound = width * settings.tapZoneLeft;
+    final rightBound = width * (1 - settings.tapZoneRight);
+    if (dx >= leftBound && dx <= rightBound) {
+      notifier.toggleToolbar();
+      return;
+    }
+
+    // Top area: scroll up or switch to previous chapter
+    if (dy < height * 0.3) {
+      if (_scrollController.hasClients && _scrollController.offset > 0) {
+        _scrollController.animateTo(
+          (_scrollController.offset - height * 0.6).clamp(
+              0, _scrollController.position.maxScrollExtent),
+          duration: const Duration(milliseconds: 300),
+          curve: Curves.easeOut,
+        );
+      } else if (chapterIndex > 0) {
+        notifier.setChapter(chapterIndex - 1);
+      }
+    }
+    // Bottom area: scroll down or switch to next chapter
+    else if (dy > height * 0.7) {
+      if (_scrollController.hasClients &&
+          _scrollController.offset < _scrollController.position.maxScrollExtent) {
+        _scrollController.animateTo(
+          (_scrollController.offset + height * 0.6).clamp(
+              0, _scrollController.position.maxScrollExtent),
+          duration: const Duration(milliseconds: 300),
+          curve: Curves.easeOut,
+        );
+      } else if (chapterIndex < totalChapters - 1) {
+        notifier.setChapter(chapterIndex + 1);
+      }
+    }
+  }
+
+  void _showSwitchSourceSheet(dynamic book) {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      builder: (ctx) => SwitchSourceSheet(
+        bookId: book.id,
+        bookTitle: book.title,
+        currentSourceId: book.sourceId,
+      ),
+    ).then((switched) {
+      if (switched == true) {
+        // Refresh chapters after source switch
+        ref.invalidate(chaptersProvider(widget.bookId));
+        ref.invalidate(chapterContentProvider((
+          bookId: widget.bookId,
+          chapterIndex: 0,
+        )));
+      }
+    });
   }
 
   void _showChapterDrawer(List<ChapterEntity> chapters) {
@@ -290,11 +885,13 @@ class _ReaderPageState extends ConsumerState<ReaderPage> {
 
   void _showBookmarkSheet(ChapterEntity chapter) {
     ref.read(readerNotifierProvider(widget.bookId).notifier).hideToolbar();
+    final chapters = ref.read(chaptersProvider(widget.bookId)).valueOrNull ?? [];
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
       builder: (ctx) => BookmarkListSheet(
         bookId: widget.bookId,
+        chapters: chapters,
         onJumpToBookmark: (chapterIndex, position) {
           final notifier =
               ref.read(readerNotifierProvider(widget.bookId).notifier);
@@ -306,7 +903,8 @@ class _ReaderPageState extends ConsumerState<ReaderPage> {
   }
 
   void _toggleNightMode() {
-    setState(() => _isNightMode = !_isNightMode);
+    final notifier = ref.read(readingSettingsProvider.notifier);
+    notifier.setNightMode(!ref.read(readingSettingsProvider).isNightMode);
     ref.read(readerNotifierProvider(widget.bookId).notifier).hideToolbar();
   }
 
@@ -331,5 +929,34 @@ class _ReaderPageState extends ConsumerState<ReaderPage> {
       );
     }
     ref.read(readerNotifierProvider(widget.bookId).notifier).hideToolbar();
+  }
+
+  List<String> _parseImageUrls(String json) {
+    try {
+      final list = jsonDecode(json) as List<dynamic>;
+      return list.cast<String>();
+    } catch (_) {
+      return [];
+    }
+  }
+
+  void _handleMangaTap(TapUpDetails details, Size screenSize,
+      ReaderNotifier notifier) {
+    if (ref.read(readerNotifierProvider(widget.bookId)).isLocked) return;
+
+    final dx = details.globalPosition.dx;
+    final width = screenSize.width;
+
+    final leftBound = width * 0.3;
+    final rightBound = width * 0.7;
+
+    if (dx < leftBound) {
+      notifier.previousPage();
+    } else if (dx > rightBound) {
+      // nextPage with a large count — MangaContentView handles bounds
+      notifier.nextPage(9999);
+    } else {
+      notifier.toggleToolbar();
+    }
   }
 }

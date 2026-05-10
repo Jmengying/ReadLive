@@ -26,6 +26,10 @@ class SourceRule {
   });
 
   factory SourceRule.fromJson(Map<String, dynamic> json) {
+    // Auto-detect and convert Legado format
+    if (_isLegadoFormat(json)) {
+      json = _convertLegado(json);
+    }
     return SourceRule(
       id: json['id'] as String?,
       name: json['name'] as String? ?? '',
@@ -46,6 +50,79 @@ class SourceRule {
           ? ContentRule.fromJson(json['content'] as Map<String, dynamic>)
           : null,
     );
+  }
+
+  static bool _isLegadoFormat(Map<String, dynamic> json) {
+    return json.containsKey('bookSourceName') || json.containsKey('bookSourceUrl');
+  }
+
+  static Map<String, dynamic> _convertLegado(Map<String, dynamic> legado) {
+    // Map bookSourceType to contentType string
+    String contentType = 'novel';
+    final type = legado['bookSourceType'] as int? ?? 0;
+    if (type == 1) contentType = 'manga';
+
+    // Convert search rule
+    Map<String, dynamic>? search;
+    final ruleSearch = legado['ruleSearch'] as Map<String, dynamic>?;
+    final searchUrl = legado['searchUrl'] as String?;
+    if (ruleSearch != null || searchUrl != null) {
+      search = {
+        if (searchUrl != null) 'url': searchUrl,
+        if (ruleSearch?['bookList'] != null) 'list': ruleSearch!['bookList'],
+        if (ruleSearch?['name'] != null) 'bookName': ruleSearch!['name'],
+        if (ruleSearch?['author'] != null) 'author': ruleSearch!['author'],
+        if (ruleSearch?['coverUrl'] != null) 'cover': ruleSearch!['coverUrl'],
+        if (ruleSearch?['intro'] != null) 'intro': ruleSearch!['intro'],
+        if (ruleSearch?['bookUrl'] != null) 'bookUrl': ruleSearch!['bookUrl'],
+        if (ruleSearch?['nextPageUrl'] != null) 'nextPage': ruleSearch!['nextPageUrl'],
+      };
+    }
+
+    // Convert bookInfo rule
+    Map<String, dynamic>? bookInfo;
+    final ruleBookInfo = legado['ruleBookInfo'] as Map<String, dynamic>?;
+    if (ruleBookInfo != null) {
+      bookInfo = {
+        if (ruleBookInfo['coverUrl'] != null) 'cover': ruleBookInfo['coverUrl'],
+        if (ruleBookInfo['intro'] != null) 'intro': ruleBookInfo['intro'],
+        if (ruleBookInfo['author'] != null) 'author': ruleBookInfo['author'],
+        if (ruleBookInfo['tocUrl'] != null) 'tocUrl': ruleBookInfo['tocUrl'],
+      };
+    }
+
+    // Convert toc rule
+    Map<String, dynamic>? toc;
+    final ruleToc = legado['ruleToc'] as Map<String, dynamic>?;
+    if (ruleToc != null) {
+      toc = {
+        if (ruleToc['chapterList'] != null) 'list': ruleToc['chapterList'],
+        if (ruleToc['chapterName'] != null) 'name': ruleToc['chapterName'],
+        if (ruleToc['chapterUrl'] != null) 'url': ruleToc['chapterUrl'],
+      };
+    }
+
+    // Convert content rule
+    Map<String, dynamic>? content;
+    final ruleContent = legado['ruleContent'] as Map<String, dynamic>?;
+    if (ruleContent != null) {
+      content = {
+        if (ruleContent['content'] != null) 'content': ruleContent['content'],
+        if (ruleContent['nextContentUrl'] != null) 'nextPage': ruleContent['nextContentUrl'],
+      };
+    }
+
+    return {
+      'name': legado['bookSourceName'] as String? ?? '',
+      'host': legado['bookSourceUrl'] as String? ?? '',
+      'contentType': contentType,
+      'enabled': legado['enabled'] as bool? ?? true,
+      'weight': legado['weight'] as int? ?? 100,
+      if (search != null) 'search': search,
+      if (bookInfo != null) 'bookInfo': bookInfo,
+      if (toc != null) 'toc': toc,
+      if (content != null) 'content': content,
+    };
   }
 
   Map<String, dynamic> toJson() {
@@ -178,11 +255,13 @@ class ContentRule {
   final String content;
   final String? nextPage;
   final String encoding;
+  final String? images;
 
   const ContentRule({
     required this.content,
     this.nextPage,
     this.encoding = 'utf-8',
+    this.images,
   });
 
   factory ContentRule.fromJson(Map<String, dynamic> json) {
@@ -190,6 +269,7 @@ class ContentRule {
       content: json['content'] as String? ?? '',
       nextPage: json['nextPage'] as String?,
       encoding: json['encoding'] as String? ?? 'utf-8',
+      images: json['images'] as String?,
     );
   }
 
@@ -198,6 +278,7 @@ class ContentRule {
       'content': content,
       if (nextPage != null) 'nextPage': nextPage,
       'encoding': encoding,
+      if (images != null) 'images': images,
     };
   }
 }

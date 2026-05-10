@@ -1,0 +1,141 @@
+[
+  {
+    "bookSourceName": "起点中文网",
+    "bookSourceUrl": "https://www.qidian.com",
+    "searchUrl": "https://www.qidian.com/search?kw={{key}}",
+    "ruleSearch": {
+      "bookList": ".res-book-item",
+      "name": ".book-mid-info h4 a@text",
+      "author": ".author a:first-child@text",
+      "bookUrl": ".book-mid-info h4 a@href",
+      "coverUrl": ".book-img-box img@src",
+      "intro": ".intro@text"
+    },
+    "ruleBookInfo": {
+      "coverUrl": "#bookImg img@src",
+      "intro": ".book-intro p@text",
+      "author": ".writer@text",
+      "tocUrl": ""
+    },
+    "ruleToc": {
+      "chapterList": ".volume-wrap li a",
+      "chapterName": "@text",
+      "chapterUrl": "@href"
+    },
+    "ruleContent": {
+      "content": ".read-content p@text"
+    }
+  },
+  {
+    "bookSourceName": "书客",
+    "bookSourceUrl": "https://www.shuqi.com",
+    "searchUrl": "https://www.shuqi.com/search?keyword={{key}}",
+    "ruleSearch": {
+      "bookList": ".book-item",
+      "name": ".book-title@text",
+      "author": ".book-author@text",
+      "bookUrl": "a@href",
+      "coverUrl": ".book-cover img@src",
+      "intro": ".book-desc@text"
+    },
+    "ruleBookInfo": {
+      "coverUrl": ".book-cover img@src",
+      "intro": ".book-desc@text",
+      "author": ".book-author@text",
+      "tocUrl": ""
+    },
+    "ruleToc": {
+      "chapterList": ".chapter-list li a",
+      "chapterName": "@text",
+      "chapterUrl": "@href"
+    },
+    "ruleContent": {
+      "content": ".chapter-content p@text"
+    }
+  },
+  {
+    "bookSourceName": "飞卢小说",
+    "bookSourceUrl": "https://b.faloo.com",
+    "searchUrl": "https://b.faloo.com/search?k={{key}}",
+    "ruleSearch": {
+      "bookList": ".SearchResult li",
+      "name": ".SearchResult_Title a@text",
+      "author": ".SearchResult_Author a@text",
+      "bookUrl": ".SearchResult_Title a@href",
+      "coverUrl": ".SearchResult_Cover img@src",
+      "intro": ".SearchResult_Intro@text"
+    },
+    "ruleBookInfo": {
+      "coverUrl": ".BookInfo_Cover img@src",
+      "intro": ".BookInfo_Intro@text",
+      "author": ".BookInfo_Author a@text",
+      "tocUrl": ""
+    },
+    "ruleToc": {
+      "chapterList": ".Chapter_List li a",
+      "chapterName": "@text",
+      "chapterUrl": "@href"
+    },
+    "ruleContent": {
+      "content": ".ReadContent p@text"
+    }
+  },
+  {
+    "bookSourceName": "快看漫画",
+    "bookSourceUrl": "https://www.kuaikanmanhua.com",
+    "searchUrl": "https://www.kuaikanmanhua.com/search/{{key}}",
+    "bookSourceType": 1,
+    "ruleSearch": {
+      "bookList": ".search-result-item",
+      "name": ".title@text",
+      "author": ".author@text",
+      "bookUrl": "a@href",
+      "coverUrl": ".cover img@src",
+      "intro": ".desc@text"
+    },
+    "ruleBookInfo": {
+      "coverUrl": ".cover img@src",
+      "intro": ".desc@text",
+      "author": ".author@text",
+      "tocUrl": ""
+    },
+    "ruleToc": {
+      "chapterList": ".episode-list li a",
+      "chapterName": "@text",
+      "chapterUrl": "@href"
+    },
+    "ruleContent": {
+      "content": ".comic-image img@src",
+      "images": ".comic-image img@src"
+    }
+  },
+  {
+    "bookSourceName": "腾讯动漫",
+    "bookSourceUrl": "https://ac.qq.com",
+    "searchUrl": "https://ac.qq.com/Comic/searchList/search/{{key}}",
+    "bookSourceType": 1,
+    "ruleSearch": {
+      "bookList": ".ret-works-cover",
+      "name": ".ret-works-title a@text",
+      "author": ".ret-works-author a@text",
+      "bookUrl": ".ret-works-title a@href",
+      "coverUrl": ".ret-works-cover img@src",
+      "intro": ".ret-works-dec@text"
+    },
+    "ruleBookInfo": {
+      "coverUrl": ".works-cover img@src",
+      "intro": ".works-dec@text",
+      "author": ".works-author a@text",
+      "tocUrl": ""
+    },
+    "ruleToc": {
+      "chapterList": ".chapter-list-all li a",
+      "chapterName": "@text",
+      "chapterUrl": "@href"
+    },
+    "ruleContent": {
+      "content": "#comicContain img@src",
+      "images": "#comicContain img@src"
+    }
+  }
+]

@@ -19,6 +19,8 @@ class BookmarkRepository {
     String? note,
     String? highlightColor,
     String type = 'bookmark',
+    int? startOffset,
+    int? endOffset,
   }) async {
     final now = DateTime.now().millisecondsSinceEpoch;
     final id = _uuid.v4();
@@ -27,6 +29,8 @@ class BookmarkRepository {
       bookId: Value(bookId),
       chapterId: Value(chapterId),
       position: Value(position),
+      startOffset: Value(startOffset),
+      endOffset: Value(endOffset),
       contentPreview: Value(contentPreview),
       note: Value(note),
       highlightColor: Value(highlightColor),
@@ -36,6 +40,23 @@ class BookmarkRepository {
     await _db.insertBookmark(companion);
     return (await _db.getBookmarksByBook(bookId))
         .firstWhere((b) => b.id == id);
+  }
+
+  Future<void> updateBookmarkNote(String bookId, String id, String note) async {
+    final bookmarks = await _db.getBookmarksByBook(bookId);
+    final existing = bookmarks.firstWhere((b) => b.id == id);
+    final companion = BookmarksTableCompanion(
+      id: Value(existing.id),
+      bookId: Value(existing.bookId),
+      chapterId: Value(existing.chapterId),
+      position: Value(existing.position),
+      contentPreview: Value(existing.contentPreview),
+      note: Value(note),
+      highlightColor: Value(existing.highlightColor),
+      type: Value(note.isNotEmpty ? 'note' : 'bookmark'),
+      createdAt: Value(existing.createdAt),
+    );
+    await _db.updateBookmark(companion);
   }
 
   Future<void> deleteBookmark(String id) => _db.deleteBookmark(id);

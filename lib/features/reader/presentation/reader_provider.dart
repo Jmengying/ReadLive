@@ -1,6 +1,7 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:readlive/core/database/app_database.dart';
 import 'package:readlive/features/bookshelf/data/book_repository.dart';
+import 'package:readlive/features/book_source/presentation/book_source_provider.dart';
 import 'package:readlive/features/reader/data/bookmark_repository.dart';
 import 'package:readlive/features/bookshelf/domain/book_entity.dart';
 import 'package:readlive/features/bookshelf/presentation/bookshelf_provider.dart';
@@ -75,7 +76,10 @@ class ReaderNotifier extends StateNotifier<ReaderState> {
   }
 
   void toggleLock() {
-    state = state.copyWith(isLocked: !state.isLocked);
+    state = state.copyWith(
+      isLocked: !state.isLocked,
+      isToolbarVisible: false,
+    );
   }
 
   void setChapter(int index) {
@@ -120,13 +124,76 @@ final readerNotifierProvider = StateNotifierProvider.family<ReaderNotifier, Read
   return ReaderNotifier(repo, bookId);
 });
 
+// Fetch and cache a single chapter's content on-demand
+final chapterContentProvider = FutureProvider.family<String, ({
+  String bookId,
+  int chapterIndex,
+})>((ref, params) async {
+  final chapters = await ref.watch(chaptersProvider(params.bookId).future);
+  if (chapters.isEmpty || params.chapterIndex >= chapters.length) return '';
+
+  final chapter = chapters[params.chapterIndex];
+
+  // Already cached
+  if (chapter.content != null && chapter.content!.isNotEmpty) {
+    return chapter.content!;
+  }
+
+  // No URL to fetch from (local book with no content)
+  if (chapter.url == null || chapter.url!.isEmpty) return '';
+
+  // Need to fetch from source
+  final book = await ref.watch(currentBookProvider(params.bookId).future);
+  if (book == null || book.sourceId == null) return '';
+
+  final sourceRepo = ref.watch(bookSourceRepositoryProvider);
+  final source = await sourceRepo.getSourceById(book.sourceId!);
+  if (source == null) return '';
+
+  final rule = source.parseRule();
+  if (rule.content == null) return '';
+
+  final crawler = ref.watch(chapterCrawlerProvider);
+  final String content;
+
+  if (book.contentType == 'manga') {
+    content = await crawler.fetchChapterImages(
+      chapterUrl: chapter.url!,
+      contentRule: rule.content!,
+      host: source.host,
+    );
+  } else {
+    content = await crawler.fetchChapterContent(
+      chapterUrl: chapter.url!,
+      contentRule: rule.content!,
+      host: source.host,
+    );
+  }
+
+  if (content.isNotEmpty) {
+    // Cache to database
+    final db = ref.watch(databaseProvider);
+    await db.updateChapterContent(chapter.id, content);
+    // Invalidate chapters provider so chapter drawer picks up cached status
+    ref.invalidate(chaptersProvider(params.bookId));
+  }
+
+  return content;
+});
+
 // Paginated pages for a chapter
 final chapterPagesProvider = FutureProvider.family<List<PageContent>, ({String bookId, int chapterIndex, double screenWidth, double screenHeight})>((ref, params) async {
-  final chapters = await ref.watch(chaptersProvider(params.bookId).future);
-  if (chapters.isEmpty || params.chapterIndex >= chapters.length) {
-    return <PageContent>[];
-  }
-  final content = chapters[params.chapterIndex].content ?? '';
+  final content = await ref.watch(chapterContentProvider((
+    bookId: params.bookId,
+    chapterIndex: params.chapterIndex,
+  )).future);
+
+  if (content.isEmpty) return <PageContent>[];
+
+  // Manga content is a JSON image URL list, not text — skip pagination
+  final book = await ref.watch(currentBookProvider(params.bookId).future);
+  if (book?.contentType == 'manga') return <PageContent>[];
+
   final settings = ref.watch(readingSettingsProvider);
   final engine = PaginationEngine(
     fontSize: settings.fontSize,

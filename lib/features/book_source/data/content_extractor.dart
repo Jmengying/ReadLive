@@ -66,6 +66,14 @@ class ContentExtractor {
     return _parser.extractContent(html, rule.content);
   }
 
+  /// Extract image URLs from a manga chapter page.
+  ///
+  /// [imagesRule] is a CSS selector for image elements, e.g. `.chapter-content img`
+  List<String> extractImageUrls(String html, String? imagesRule) {
+    if (imagesRule == null || imagesRule.isEmpty) return [];
+    return _parser.extractImageList(html, imagesRule, '@src');
+  }
+
   /// Check if there is a next page URL.
   String? extractNextPageUrl(String html, String? nextPageRule) {
     if (nextPageRule == null || nextPageRule.isEmpty) return null;

@@ -54,12 +54,17 @@ class ReadingSettings {
   final int fontWeight;
   final double paragraphSpacing;
   final double firstLineIndent;
+  final double letterSpacing;
   final String pageAnimation;
   final double brightness; // -1.0 = 跟随系统
   final bool eyeProtection;
+  final double eyeProtectionIntensity; // 0.0 ~ 1.0
+  final bool isNightMode;
   final bool keepScreenOn;
   final double tapZoneLeft;
   final double tapZoneRight;
+  final int customBgColor; // ARGB int, -1 = not set
+  final String? bgImagePath;
 
   const ReadingSettings({
     this.fontSize = 18.0,
@@ -69,12 +74,17 @@ class ReadingSettings {
     this.fontWeight = 400,
     this.paragraphSpacing = 16.0,
     this.firstLineIndent = 2.0,
+    this.letterSpacing = 0.0,
     this.pageAnimation = 'slide',
     this.brightness = -1.0,
     this.eyeProtection = false,
+    this.eyeProtectionIntensity = 0.3,
+    this.isNightMode = false,
     this.keepScreenOn = true,
     this.tapZoneLeft = 0.3,
     this.tapZoneRight = 0.3,
+    this.customBgColor = -1,
+    this.bgImagePath,
   });
 
   ReadingSettings copyWith({
@@ -85,12 +95,17 @@ class ReadingSettings {
     int? fontWeight,
     double? paragraphSpacing,
     double? firstLineIndent,
+    double? letterSpacing,
     String? pageAnimation,
     double? brightness,
     bool? eyeProtection,
+    double? eyeProtectionIntensity,
+    bool? isNightMode,
     bool? keepScreenOn,
     double? tapZoneLeft,
     double? tapZoneRight,
+    int? customBgColor,
+    String? bgImagePath,
   }) {
     return ReadingSettings(
       fontSize: fontSize ?? this.fontSize,
@@ -100,12 +115,17 @@ class ReadingSettings {
       fontWeight: fontWeight ?? this.fontWeight,
       paragraphSpacing: paragraphSpacing ?? this.paragraphSpacing,
       firstLineIndent: firstLineIndent ?? this.firstLineIndent,
+      letterSpacing: letterSpacing ?? this.letterSpacing,
       pageAnimation: pageAnimation ?? this.pageAnimation,
       brightness: brightness ?? this.brightness,
       eyeProtection: eyeProtection ?? this.eyeProtection,
+      eyeProtectionIntensity: eyeProtectionIntensity ?? this.eyeProtectionIntensity,
+      isNightMode: isNightMode ?? this.isNightMode,
       keepScreenOn: keepScreenOn ?? this.keepScreenOn,
       tapZoneLeft: tapZoneLeft ?? this.tapZoneLeft,
       tapZoneRight: tapZoneRight ?? this.tapZoneRight,
+      customBgColor: customBgColor ?? this.customBgColor,
+      bgImagePath: bgImagePath ?? this.bgImagePath,
     );
   }
 }
@@ -119,19 +139,24 @@ class ReadingSettingsNotifier extends StateNotifier<ReadingSettings> {
 
   Future<void> _load() async {
     final results = await Future.wait([
-      _repo.getFontSize(),
-      _repo.getLineHeight(),
-      _repo.getReadingBgIndex(),
-      _repo.getReadingFontFamily(),
-      _repo.getReadingFontWeight(),
-      _repo.getReadingParagraphSpacing(),
-      _repo.getReadingFirstLineIndent(),
-      _repo.getReadingPageAnimation(),
-      _repo.getReadingBrightness(),
-      _repo.getReadingEyeProtection(),
-      _repo.getReadingKeepScreenOn(),
-      _repo.getReadingTapZoneLeft(),
-      _repo.getReadingTapZoneRight(),
+      _repo.getFontSize(),           // 0
+      _repo.getLineHeight(),         // 1
+      _repo.getReadingBgIndex(),     // 2
+      _repo.getReadingFontFamily(),  // 3
+      _repo.getReadingFontWeight(),  // 4
+      _repo.getReadingParagraphSpacing(), // 5
+      _repo.getReadingFirstLineIndent(),  // 6
+      _repo.getReadingPageAnimation(),    // 7
+      _repo.getReadingBrightness(),       // 8
+      _repo.getReadingEyeProtection(),    // 9
+      _repo.getReadingKeepScreenOn(),     // 10
+      _repo.getReadingTapZoneLeft(),      // 11
+      _repo.getReadingTapZoneRight(),     // 12
+      _repo.getReadingNightMode(),        // 13
+      _repo.getReadingEyeProtectionIntensity(), // 14
+      _repo.getReadingLetterSpacing(),    // 15
+      _repo.getReadingCustomBgColor(),    // 16
+      _repo.getReadingBgImagePath(),      // 17
     ]);
 
     state = ReadingSettings(
@@ -148,6 +173,11 @@ class ReadingSettingsNotifier extends StateNotifier<ReadingSettings> {
       keepScreenOn: results[10] as bool,
       tapZoneLeft: results[11] as double,
       tapZoneRight: results[12] as double,
+      isNightMode: results[13] as bool,
+      eyeProtectionIntensity: results[14] as double,
+      letterSpacing: results[15] as double,
+      customBgColor: results[16] as int,
+      bgImagePath: results[17] as String?,
     );
   }
 
@@ -215,10 +245,113 @@ class ReadingSettingsNotifier extends StateNotifier<ReadingSettings> {
     state = state.copyWith(tapZoneRight: value);
     await _repo.setReadingTapZoneRight(value);
   }
+
+  Future<void> setNightMode(bool enabled) async {
+    state = state.copyWith(isNightMode: enabled);
+    await _repo.setReadingNightMode(enabled);
+  }
+
+  Future<void> setEyeProtectionIntensity(double value) async {
+    state = state.copyWith(eyeProtectionIntensity: value);
+    await _repo.setReadingEyeProtectionIntensity(value);
+  }
+
+  Future<void> setLetterSpacing(double value) async {
+    state = state.copyWith(letterSpacing: value);
+    await _repo.setReadingLetterSpacing(value);
+  }
+
+  Future<void> setCustomBgColor(int color) async {
+    state = state.copyWith(customBgColor: color);
+    await _repo.setReadingCustomBgColor(color);
+  }
+
+  Future<void> clearCustomBgColor() async {
+    state = state.copyWith(customBgColor: -1);
+    await _repo.setReadingCustomBgColor(-1);
+  }
+
+  Future<void> setBgImagePath(String? path) async {
+    state = state.copyWith(bgImagePath: path);
+    await _repo.setReadingBgImagePath(path);
+  }
 }
 
 final readingSettingsProvider =
     StateNotifierProvider<ReadingSettingsNotifier, ReadingSettings>((ref) {
   final repo = ref.watch(settingsRepositoryProvider);
   return ReadingSettingsNotifier(repo);
+});
+
+// Accent color
+class AccentColorNotifier extends StateNotifier<Color> {
+  final SettingsRepository _repo;
+
+  AccentColorNotifier(this._repo) : super(const Color(0xFF8B6914)) {
+    _load();
+  }
+
+  Future<void> _load() async {
+    final colorValue = await _repo.getAccentColor();
+    state = Color(colorValue);
+  }
+
+  Future<void> setColor(Color color) async {
+    state = color;
+    await _repo.setAccentColor(color.value);
+  }
+}
+
+final accentColorProvider =
+    StateNotifierProvider<AccentColorNotifier, Color>((ref) {
+  final repo = ref.watch(settingsRepositoryProvider);
+  return AccentColorNotifier(repo);
+});
+
+// Avatar path
+class AvatarPathNotifier extends StateNotifier<String?> {
+  final SettingsRepository _repo;
+
+  AvatarPathNotifier(this._repo) : super(null) {
+    _load();
+  }
+
+  Future<void> _load() async {
+    state = await _repo.getAvatarPath();
+  }
+
+  Future<void> setPath(String? path) async {
+    state = path;
+    await _repo.setAvatarPath(path);
+  }
+}
+
+final avatarPathProvider =
+    StateNotifierProvider<AvatarPathNotifier, String?>((ref) {
+  final repo = ref.watch(settingsRepositoryProvider);
+  return AvatarPathNotifier(repo);
+});
+
+// Signature
+class SignatureNotifier extends StateNotifier<String> {
+  final SettingsRepository _repo;
+
+  SignatureNotifier(this._repo) : super('记录每一次阅读') {
+    _load();
+  }
+
+  Future<void> _load() async {
+    state = await _repo.getSignature();
+  }
+
+  Future<void> setSignature(String value) async {
+    state = value;
+    await _repo.setSignature(value);
+  }
+}
+
+final signatureProvider =
+    StateNotifierProvider<SignatureNotifier, String>((ref) {
+  final repo = ref.watch(settingsRepositoryProvider);
+  return SignatureNotifier(repo);
 });

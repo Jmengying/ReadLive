@@ -9,6 +9,7 @@ class BookEntity {
   final String? sourceId;
   final String? bookUrl;
   final String contentType;
+  final String? groupId;
   final int? lastReadAt;
   final double progress;
   final int createdAt;
@@ -23,6 +24,7 @@ class BookEntity {
     this.sourceId,
     this.bookUrl,
     required this.contentType,
+    this.groupId,
     this.lastReadAt,
     this.progress = 0.0,
     required this.createdAt,
@@ -39,6 +41,7 @@ class BookEntity {
       sourceId: data.sourceId,
       bookUrl: data.bookUrl,
       contentType: data.contentType,
+      groupId: data.groupId,
       lastReadAt: data.lastReadAt,
       progress: data.progress,
       createdAt: data.createdAt,
