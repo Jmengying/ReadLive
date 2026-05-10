@@ -6,6 +6,10 @@ class TextContentView extends StatelessWidget {
   final double lineHeight;
   final Color textColor;
   final Color backgroundColor;
+  final String fontFamily;
+  final int fontWeight;
+  final double firstLineIndent;
+  final bool eyeProtection;
 
   const TextContentView({
     super.key,
@@ -14,11 +18,15 @@ class TextContentView extends StatelessWidget {
     this.lineHeight = 1.8,
     this.textColor = const Color(0xFF333333),
     this.backgroundColor = const Color(0xFFF5F0E6),
+    this.fontFamily = 'system',
+    this.fontWeight = 400,
+    this.firstLineIndent = 2.0,
+    this.eyeProtection = false,
   });
 
   @override
   Widget build(BuildContext context) {
-    return Container(
+    Widget content = Container(
       color: backgroundColor,
       width: double.infinity,
       height: double.infinity,
@@ -30,9 +38,41 @@ class TextContentView extends StatelessWidget {
             fontSize: fontSize,
             height: lineHeight,
             color: textColor,
+            fontWeight: _parseFontWeight(fontWeight),
+            fontFamily: fontFamily == 'system' ? null : fontFamily,
           ),
         ),
       ),
     );
+
+    if (eyeProtection) {
+      content = Stack(
+        children: [
+          content,
+          Container(
+            color: const Color(0x0AFFBE76),
+            width: double.infinity,
+            height: double.infinity,
+          ),
+        ],
+      );
+    }
+
+    return content;
+  }
+
+  FontWeight _parseFontWeight(int weight) {
+    switch (weight) {
+      case 100: return FontWeight.w100;
+      case 200: return FontWeight.w200;
+      case 300: return FontWeight.w300;
+      case 400: return FontWeight.w400;
+      case 500: return FontWeight.w500;
+      case 600: return FontWeight.w600;
+      case 700: return FontWeight.w700;
+      case 800: return FontWeight.w800;
+      case 900: return FontWeight.w900;
+      default: return FontWeight.w400;
+    }
   }
 }

@@ -9,7 +9,10 @@ class ReaderToolbar extends StatelessWidget {
   final VoidCallback onToggleLock;
   final VoidCallback onShowChapters;
   final VoidCallback onShowSettings;
+  final VoidCallback onShowBookmarks;
   final VoidCallback onToggleNightMode;
+  final VoidCallback onToggleTts;
+  final VoidCallback onAddBookmark;
   final ValueChanged<int> onChapterChange;
 
   const ReaderToolbar({
@@ -22,7 +25,10 @@ class ReaderToolbar extends StatelessWidget {
     required this.onToggleLock,
     required this.onShowChapters,
     required this.onShowSettings,
+    required this.onShowBookmarks,
     required this.onToggleNightMode,
+    required this.onToggleTts,
+    required this.onAddBookmark,
     required this.onChapterChange,
   });
 
@@ -30,7 +36,6 @@ class ReaderToolbar extends StatelessWidget {
   Widget build(BuildContext context) {
     return Column(
       children: [
-        // Top toolbar
         Container(
           color: Colors.black54,
           padding: EdgeInsets.only(
@@ -62,7 +67,6 @@ class ReaderToolbar extends StatelessWidget {
           ),
         ),
         const Spacer(),
-        // Bottom toolbar
         Container(
           color: Colors.black54,
           padding: EdgeInsets.only(
@@ -84,9 +88,7 @@ class ReaderToolbar extends StatelessWidget {
                     child: Slider(
                       value: currentChapter.toDouble(),
                       min: 0,
-                      max: (totalChapters - 1)
-                          .toDouble()
-                          .clamp(0, double.infinity),
+                      max: (totalChapters - 1).toDouble().clamp(0, double.infinity),
                       onChanged: (v) => onChapterChange(v.toInt()),
                       activeColor: Colors.white,
                       inactiveColor: Colors.white30,
@@ -107,8 +109,22 @@ class ReaderToolbar extends StatelessWidget {
                     tooltip: '目录',
                   ),
                   IconButton(
-                    icon: const Icon(Icons.nightlight_round,
-                        color: Colors.white),
+                    icon: const Icon(Icons.bookmark_border, color: Colors.white),
+                    onPressed: onShowBookmarks,
+                    tooltip: '书签',
+                  ),
+                  IconButton(
+                    icon: const Icon(Icons.bookmark_add, color: Colors.white),
+                    onPressed: onAddBookmark,
+                    tooltip: '添加书签',
+                  ),
+                  IconButton(
+                    icon: const Icon(Icons.volume_up, color: Colors.white),
+                    onPressed: onToggleTts,
+                    tooltip: '朗读',
+                  ),
+                  IconButton(
+                    icon: const Icon(Icons.nightlight_round, color: Colors.white),
                     onPressed: onToggleNightMode,
                     tooltip: '夜间模式',
                   ),

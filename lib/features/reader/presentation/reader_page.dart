@@ -1,10 +1,15 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
-import 'package:readlive/features/reader/domain/chapter_entity.dart';
+import 'package:wakelock_plus/wakelock_plus.dart';
+import 'package:readlive/core/theme/app_theme.dart';
+import 'package:readlive/features/settings/presentation/settings_provider.dart';
 import 'package:readlive/features/reader/presentation/reader_provider.dart';
 import 'package:readlive/features/reader/presentation/widgets/text_content_view.dart';
 import 'package:readlive/features/reader/presentation/widgets/reader_toolbar.dart';
+import 'package:readlive/features/reader/presentation/widgets/reading_settings_panel.dart';
+import 'package:readlive/features/reader/presentation/widgets/bookmark_list_sheet.dart';
+import 'package:readlive/features/reader/presentation/widgets/tts_controls.dart';
 
 class ReaderPage extends ConsumerStatefulWidget {
   final String bookId;
@@ -15,12 +20,41 @@ class ReaderPage extends ConsumerStatefulWidget {
 }
 
 class _ReaderPageState extends ConsumerState<ReaderPage> {
+  bool _showTts = false;
+  bool _isNightMode = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _enableWakelock();
+  }
+
+  @override
+  void dispose() {
+    WakelockPlus.disable();
+    super.dispose();
+  }
+
+  Future<void> _enableWakelock() async {
+    final settings = ref.read(readingSettingsProvider);
+    if (settings.keepScreenOn) {
+      await WakelockPlus.enable();
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final bookAsync = ref.watch(currentBookProvider(widget.bookId));
     final chaptersAsync = ref.watch(chaptersProvider(widget.bookId));
     final readerState = ref.watch(readerNotifierProvider(widget.bookId));
     final notifier = ref.read(readerNotifierProvider(widget.bookId).notifier);
+    final readingSettings = ref.watch(readingSettingsProvider);
+
+    final bgIndex = _isNightMode ? 4 : readingSettings.bgIndex;
+    final bgColor = AppTheme.readingBackgrounds[bgIndex];
+    final textColor = bgIndex >= 3
+        ? AppTheme.readingTextColors[1]
+        : AppTheme.readingTextColors[0];
 
     return Scaffold(
       body: bookAsync.when(
@@ -51,8 +85,7 @@ class _ReaderPageState extends ConsumerState<ReaderPage> {
               )));
 
               return pagesAsync.when(
-                loading: () =>
-                    const Center(child: CircularProgressIndicator()),
+                loading: () => const Center(child: CircularProgressIndicator()),
                 error: (e, _) => Center(child: Text('分页失败: $e')),
                 data: (pages) {
                   if (pages.isEmpty) {
@@ -64,7 +97,8 @@ class _ReaderPageState extends ConsumerState<ReaderPage> {
 
                   return GestureDetector(
                     onTapUp: (details) => _handleTap(
-                        details, screenSize, notifier, pages.length),
+                        details, screenSize, notifier, pages.length,
+                        readingSettings),
                     onDoubleTap: () {
                       if (readerState.isLocked) {
                         notifier.toggleLock();
@@ -72,13 +106,17 @@ class _ReaderPageState extends ConsumerState<ReaderPage> {
                     },
                     child: Stack(
                       children: [
-                        // Content
                         TextContentView(
                           text: pages[pageIndex].text,
-                          fontSize: 18,
-                          lineHeight: 1.8,
+                          fontSize: readingSettings.fontSize,
+                          lineHeight: readingSettings.lineHeight,
+                          textColor: textColor,
+                          backgroundColor: bgColor,
+                          fontFamily: readingSettings.fontFamily,
+                          fontWeight: readingSettings.fontWeight,
+                          firstLineIndent: readingSettings.firstLineIndent,
+                          eyeProtection: readingSettings.eyeProtection,
                         ),
-                        // Toolbar overlay
                         if (readerState.isToolbarVisible)
                           ReaderToolbar(
                             bookTitle: book.title,
@@ -89,39 +127,57 @@ class _ReaderPageState extends ConsumerState<ReaderPage> {
                             onToggleLock: notifier.toggleLock,
                             onShowChapters: () =>
                                 _showChapterDrawer(chapters),
-                            onShowSettings: () {},
-                            onToggleNightMode: () {},
+                            onShowSettings: () => _showSettingsPanel(),
+                            onShowBookmarks: () => _showBookmarkSheet(
+                                chapters[chapterIndex]),
+                            onToggleNightMode: _toggleNightMode,
+                            onToggleTts: _toggleTts,
+                            onAddBookmark: () => _addBookmark(
+                                chapters[chapterIndex], pageIndex),
                             onChapterChange: (index) {
                               notifier.setChapter(index);
                             },
                           ),
-                        // Lock indicator
                         if (readerState.isLocked)
                           Positioned(
                             top: MediaQuery.of(context).padding.top + 8,
                             left: 0,
                             right: 0,
                             child: Center(
-                              child: Container(
-                                padding: const EdgeInsets.symmetric(
-                                    horizontal: 12, vertical: 6),
-                                decoration: BoxDecoration(
-                                  color: Colors.black54,
-                                  borderRadius: BorderRadius.circular(16),
-                                ),
-                                child: const Row(
-                                  mainAxisSize: MainAxisSize.min,
-                                  children: [
-                                    Icon(Icons.lock,
-                                        color: Colors.white, size: 16),
-                                    SizedBox(width: 4),
-                                    Text('已锁定',
-                                        style: TextStyle(
-                                            color: Colors.white,
-                                            fontSize: 12)),
-                                  ],
+                              child: AnimatedOpacity(
+                                opacity: 1.0,
+                                duration: const Duration(milliseconds: 300),
+                                child: Container(
+                                  padding: const EdgeInsets.symmetric(
+                                      horizontal: 12, vertical: 6),
+                                  decoration: BoxDecoration(
+                                    color: Colors.black54,
+                                    borderRadius: BorderRadius.circular(16),
+                                  ),
+                                  child: const Row(
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: [
+                                      Icon(Icons.lock,
+                                          color: Colors.white, size: 16),
+                                      SizedBox(width: 4),
+                                      Text('已锁定',
+                                          style: TextStyle(
+                                              color: Colors.white,
+                                              fontSize: 12)),
+                                    ],
+                                  ),
                                 ),
                               ),
+                            ),
+                          ),
+                        if (_showTts)
+                          Positioned(
+                            left: 0,
+                            right: 0,
+                            bottom: 0,
+                            child: TtsControls(
+                              text: pages[pageIndex].text,
+                              onClose: () => setState(() => _showTts = false),
                             ),
                           ),
                       ],
@@ -137,24 +193,27 @@ class _ReaderPageState extends ConsumerState<ReaderPage> {
   }
 
   void _handleTap(TapUpDetails details, Size screenSize,
-      ReaderNotifier notifier, int totalPages) {
+      ReaderNotifier notifier, int totalPages, ReadingSettings settings) {
+    final dx = details.globalPosition.dx;
+    final width = screenSize.width;
+
     if (ref.read(readerNotifierProvider(widget.bookId)).isLocked) {
       return;
     }
 
-    final dx = details.globalPosition.dx;
-    final width = screenSize.width;
+    final leftBound = width * settings.tapZoneLeft;
+    final rightBound = width * (1 - settings.tapZoneRight);
 
-    if (dx < width * 0.3) {
+    if (dx < leftBound) {
       notifier.previousPage();
-    } else if (dx > width * 0.7) {
+    } else if (dx > rightBound) {
       notifier.nextPage(totalPages);
     } else {
       notifier.toggleToolbar();
     }
   }
 
-  void _showChapterDrawer(List<ChapterEntity> chapters) {
+  void _showChapterDrawer(List chapters) {
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
@@ -168,8 +227,7 @@ class _ReaderPageState extends ConsumerState<ReaderPage> {
             Container(
               padding: const EdgeInsets.all(16),
               child: const Text('目录',
-                  style:
-                      TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
             ),
             Expanded(
               child: ListView.builder(
@@ -179,8 +237,7 @@ class _ReaderPageState extends ConsumerState<ReaderPage> {
                   title: Text(chapters[index].title),
                   onTap: () {
                     ref
-                        .read(
-                            readerNotifierProvider(widget.bookId).notifier)
+                        .read(readerNotifierProvider(widget.bookId).notifier)
                         .setChapter(index);
                     Navigator.pop(ctx);
                   },
@@ -191,5 +248,58 @@ class _ReaderPageState extends ConsumerState<ReaderPage> {
         ),
       ),
     );
+  }
+
+  void _showSettingsPanel() {
+    ref.read(readerNotifierProvider(widget.bookId).notifier).hideToolbar();
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      builder: (ctx) => const ReadingSettingsPanel(),
+    );
+  }
+
+  void _showBookmarkSheet(dynamic chapter) {
+    ref.read(readerNotifierProvider(widget.bookId).notifier).hideToolbar();
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      builder: (ctx) => BookmarkListSheet(
+        bookId: widget.bookId,
+        onJumpToBookmark: (chapterIndex, position) {
+          ref
+              .read(readerNotifierProvider(widget.bookId).notifier)
+              .setChapter(chapterIndex);
+        },
+      ),
+    );
+  }
+
+  void _toggleNightMode() {
+    setState(() => _isNightMode = !_isNightMode);
+    ref.read(readerNotifierProvider(widget.bookId).notifier).hideToolbar();
+  }
+
+  void _toggleTts() {
+    setState(() => _showTts = !_showTts);
+    ref.read(readerNotifierProvider(widget.bookId).notifier).hideToolbar();
+  }
+
+  Future<void> _addBookmark(dynamic chapter, int pageIndex) async {
+    final repo = ref.read(bookmarkRepositoryProvider);
+    await repo.addBookmark(
+      bookId: widget.bookId,
+      chapterId: chapter.id,
+      position: pageIndex,
+      contentPreview: chapter.title,
+    );
+    ref.invalidate(bookmarksProvider(widget.bookId));
+
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('已添加书签')),
+      );
+    }
+    ref.read(readerNotifierProvider(widget.bookId).notifier).hideToolbar();
   }
 }
