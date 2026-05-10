@@ -19,6 +19,10 @@ void main() {
     expect(books, isEmpty);
   });
 
+  test('schema version is 2', () {
+    expect(db.schemaVersion, 2);
+  });
+
   test('BookSourcesTable CRUD', () async {
     final now = DateTime.now().millisecondsSinceEpoch;
     final id = 'test-source-1';
