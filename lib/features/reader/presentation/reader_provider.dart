@@ -1,5 +1,7 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:readlive/core/database/app_database.dart';
 import 'package:readlive/features/bookshelf/data/book_repository.dart';
+import 'package:readlive/features/reader/data/bookmark_repository.dart';
 import 'package:readlive/features/bookshelf/domain/book_entity.dart';
 import 'package:readlive/features/bookshelf/presentation/bookshelf_provider.dart';
 import 'package:readlive/features/reader/data/pagination_engine.dart';
@@ -133,4 +135,17 @@ final chapterPagesProvider = FutureProvider.family<List<PageContent>, ({String b
     padding: const EdgeInsets.all(16),
   );
   return engine.paginate(content);
+});
+
+// 书签仓库 Provider
+final bookmarkRepositoryProvider = Provider<BookmarkRepository>((ref) {
+  final db = ref.watch(databaseProvider);
+  return BookmarkRepository(db);
+});
+
+// 书籍的书签列表
+final bookmarksProvider =
+    FutureProvider.family<List<BookmarksTableData>, String>((ref, bookId) {
+  final repo = ref.watch(bookmarkRepositoryProvider);
+  return repo.getBookmarks(bookId);
 });
