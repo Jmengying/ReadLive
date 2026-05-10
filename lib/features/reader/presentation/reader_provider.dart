@@ -8,6 +8,7 @@ import 'package:readlive/features/reader/data/pagination_engine.dart';
 import 'package:readlive/features/reader/domain/chapter_entity.dart';
 import 'package:readlive/features/reader/domain/page_content.dart';
 import 'package:flutter/material.dart';
+import 'package:readlive/features/settings/presentation/settings_provider.dart';
 
 // Current book
 final currentBookProvider = FutureProvider.family<BookEntity?, String>((ref, bookId) {
@@ -126,10 +127,11 @@ final chapterPagesProvider = FutureProvider.family<List<PageContent>, ({String b
     return <PageContent>[];
   }
   final content = chapters[params.chapterIndex].content ?? '';
+  final settings = ref.watch(readingSettingsProvider);
   final engine = PaginationEngine(
-    fontSize: 18,
-    lineHeight: 1.8,
-    paragraphSpacing: 16,
+    fontSize: settings.fontSize,
+    lineHeight: settings.lineHeight,
+    paragraphSpacing: settings.paragraphSpacing,
     screenWidth: params.screenWidth,
     screenHeight: params.screenHeight,
     padding: const EdgeInsets.all(16),

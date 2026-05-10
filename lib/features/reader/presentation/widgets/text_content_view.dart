@@ -50,7 +50,7 @@ class TextContentView extends StatelessWidget {
         children: [
           content,
           Container(
-            color: const Color(0x0AFFBE76),
+            color: const Color(0x1AFFBE76),
             width: double.infinity,
             height: double.infinity,
           ),
@@ -72,17 +72,7 @@ class TextContentView extends StatelessWidget {
   }
 
   FontWeight _parseFontWeight(int weight) {
-    switch (weight) {
-      case 100: return FontWeight.w100;
-      case 200: return FontWeight.w200;
-      case 300: return FontWeight.w300;
-      case 400: return FontWeight.w400;
-      case 500: return FontWeight.w500;
-      case 600: return FontWeight.w600;
-      case 700: return FontWeight.w700;
-      case 800: return FontWeight.w800;
-      case 900: return FontWeight.w900;
-      default: return FontWeight.w400;
-    }
+    final index = ((weight ~/ 100) - 1).clamp(0, 8);
+    return FontWeight.values[index];
   }
 }

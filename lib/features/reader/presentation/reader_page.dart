@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 import 'package:wakelock_plus/wakelock_plus.dart';
 import 'package:readlive/core/theme/app_theme.dart';
 import 'package:readlive/features/settings/presentation/settings_provider.dart';
+import 'package:readlive/features/reader/domain/chapter_entity.dart';
 import 'package:readlive/features/reader/presentation/reader_provider.dart';
 import 'package:readlive/features/reader/presentation/widgets/text_content_view.dart';
 import 'package:readlive/features/reader/presentation/widgets/reader_toolbar.dart';
@@ -27,6 +28,15 @@ class _ReaderPageState extends ConsumerState<ReaderPage> {
   void initState() {
     super.initState();
     _enableWakelock();
+    ref.listenManual(readingSettingsProvider, (prev, next) {
+      if (prev?.keepScreenOn != next.keepScreenOn) {
+        if (next.keepScreenOn) {
+          WakelockPlus.enable();
+        } else {
+          WakelockPlus.disable();
+        }
+      }
+    });
   }
 
   @override
@@ -49,16 +59,6 @@ class _ReaderPageState extends ConsumerState<ReaderPage> {
     final readerState = ref.watch(readerNotifierProvider(widget.bookId));
     final notifier = ref.read(readerNotifierProvider(widget.bookId).notifier);
     final readingSettings = ref.watch(readingSettingsProvider);
-
-    ref.listen<ReadingSettings>(readingSettingsProvider, (prev, next) {
-      if (prev?.keepScreenOn != next.keepScreenOn) {
-        if (next.keepScreenOn) {
-          WakelockPlus.enable();
-        } else {
-          WakelockPlus.disable();
-        }
-      }
-    });
 
     final bgIndex = _isNightMode ? 4 : readingSettings.bgIndex;
     final bgColor = AppTheme.readingBackgrounds[bgIndex];
@@ -154,28 +154,24 @@ class _ReaderPageState extends ConsumerState<ReaderPage> {
                             left: 0,
                             right: 0,
                             child: Center(
-                              child: AnimatedOpacity(
-                                opacity: 1.0,
-                                duration: const Duration(milliseconds: 300),
-                                child: Container(
-                                  padding: const EdgeInsets.symmetric(
-                                      horizontal: 12, vertical: 6),
-                                  decoration: BoxDecoration(
-                                    color: Colors.black54,
-                                    borderRadius: BorderRadius.circular(16),
-                                  ),
-                                  child: const Row(
-                                    mainAxisSize: MainAxisSize.min,
-                                    children: [
-                                      Icon(Icons.lock,
-                                          color: Colors.white, size: 16),
-                                      SizedBox(width: 4),
-                                      Text('已锁定',
-                                          style: TextStyle(
-                                              color: Colors.white,
-                                              fontSize: 12)),
-                                    ],
-                                  ),
+                              child: Container(
+                                padding: const EdgeInsets.symmetric(
+                                    horizontal: 12, vertical: 6),
+                                decoration: BoxDecoration(
+                                  color: Colors.black54,
+                                  borderRadius: BorderRadius.circular(16),
+                                ),
+                                child: const Row(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    Icon(Icons.lock,
+                                        color: Colors.white, size: 16),
+                                    SizedBox(width: 4),
+                                    Text('已锁定',
+                                        style: TextStyle(
+                                            color: Colors.white,
+                                            fontSize: 12)),
+                                  ],
                                 ),
                               ),
                             ),
@@ -223,7 +219,7 @@ class _ReaderPageState extends ConsumerState<ReaderPage> {
     }
   }
 
-  void _showChapterDrawer(List chapters) {
+  void _showChapterDrawer(List<ChapterEntity> chapters) {
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
@@ -269,7 +265,7 @@ class _ReaderPageState extends ConsumerState<ReaderPage> {
     );
   }
 
-  void _showBookmarkSheet(dynamic chapter) {
+  void _showBookmarkSheet(ChapterEntity chapter) {
     ref.read(readerNotifierProvider(widget.bookId).notifier).hideToolbar();
     showModalBottomSheet(
       context: context,
@@ -277,9 +273,10 @@ class _ReaderPageState extends ConsumerState<ReaderPage> {
       builder: (ctx) => BookmarkListSheet(
         bookId: widget.bookId,
         onJumpToBookmark: (chapterIndex, position) {
-          ref
-              .read(readerNotifierProvider(widget.bookId).notifier)
-              .setChapter(chapterIndex);
+          final notifier =
+              ref.read(readerNotifierProvider(widget.bookId).notifier);
+          notifier.setChapter(chapterIndex);
+          notifier.setPage(position);
         },
       ),
     );
@@ -295,7 +292,7 @@ class _ReaderPageState extends ConsumerState<ReaderPage> {
     ref.read(readerNotifierProvider(widget.bookId).notifier).hideToolbar();
   }
 
-  Future<void> _addBookmark(dynamic chapter, int pageIndex) async {
+  Future<void> _addBookmark(ChapterEntity chapter, int pageIndex) async {
     final repo = ref.read(bookmarkRepositoryProvider);
     await repo.addBookmark(
       bookId: widget.bookId,
