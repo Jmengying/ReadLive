@@ -1,5 +1,4 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:readlive/core/database/app_database.dart';
 import 'package:readlive/features/bookshelf/data/book_repository.dart';
 import 'package:readlive/features/bookshelf/domain/book_entity.dart';
 import 'package:readlive/features/bookshelf/presentation/bookshelf_provider.dart';

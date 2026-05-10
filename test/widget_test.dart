@@ -11,6 +11,6 @@ void main() {
       ),
     );
 
-    expect(find.text('ReadLive'), findsOneWidget);
+    expect(find.byType(ReadLiveApp), findsOneWidget);
   });
 }
