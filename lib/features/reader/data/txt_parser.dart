@@ -1,3 +1,4 @@
+import 'dart:convert';
 import 'dart:io';
 import 'package:drift/drift.dart';
 import 'package:uuid/uuid.dart';
@@ -12,6 +13,23 @@ class TxtParser {
     r'^第[零一二三四五六七八九十百千万\d]+[章节回卷集部篇].*$',
     multiLine: true,
   );
+
+  String _decodeText(List<int> bytes) {
+    // Strip UTF-8 BOM if present
+    var start = 0;
+    if (bytes.length >= 3 &&
+        bytes[0] == 0xEF && bytes[1] == 0xBB && bytes[2] == 0xBF) {
+      start = 3;
+    }
+
+    // Try UTF-8 first
+    try {
+      return utf8.decode(bytes.sublist(start));
+    } catch (_) {}
+
+    // Fallback: decode as latin1 (preserves all bytes, won't crash)
+    return latin1.decode(bytes.sublist(start));
+  }
 
   List<ParsedChapter> splitChapters(String text) {
     final matches = _chapterPattern.allMatches(text).toList();
@@ -50,7 +68,8 @@ class TxtParser {
 
   Future<BookEntity> importTxtFile(String filePath, BookRepository repo) async {
     final file = File(filePath);
-    final text = await file.readAsString();
+    final bytes = await file.readAsBytes();
+    final text = _decodeText(bytes);
     final fileName = filePath.split(Platform.pathSeparator).last;
     final title = fileName.replaceAll(RegExp(r'\.txt$', caseSensitive: false), '');
 
