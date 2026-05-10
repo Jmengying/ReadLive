@@ -33,7 +33,7 @@ class TextContentView extends StatelessWidget {
       padding: const EdgeInsets.all(16),
       child: SingleChildScrollView(
         child: Text(
-          text,
+          _applyIndent(text, firstLineIndent),
           style: TextStyle(
             fontSize: fontSize,
             height: lineHeight,
@@ -59,6 +59,16 @@ class TextContentView extends StatelessWidget {
     }
 
     return content;
+  }
+
+  String _applyIndent(String text, double indent) {
+    if (indent <= 0) return text;
+    final spaces = '　' * indent.toInt();
+    return text.split('\n').map((line) {
+      final trimmed = line.trim();
+      if (trimmed.isEmpty) return '';
+      return '$spaces$trimmed';
+    }).join('\n');
   }
 
   FontWeight _parseFontWeight(int weight) {

@@ -50,6 +50,16 @@ class _ReaderPageState extends ConsumerState<ReaderPage> {
     final notifier = ref.read(readerNotifierProvider(widget.bookId).notifier);
     final readingSettings = ref.watch(readingSettingsProvider);
 
+    ref.listen<ReadingSettings>(readingSettingsProvider, (prev, next) {
+      if (prev?.keepScreenOn != next.keepScreenOn) {
+        if (next.keepScreenOn) {
+          WakelockPlus.enable();
+        } else {
+          WakelockPlus.disable();
+        }
+      }
+    });
+
     final bgIndex = _isNightMode ? 4 : readingSettings.bgIndex;
     final bgColor = AppTheme.readingBackgrounds[bgIndex];
     final textColor = bgIndex >= 3
