@@ -1,0 +1,96 @@
+import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
+import 'package:readlive/features/bookshelf/presentation/bookshelf_page.dart';
+import 'package:readlive/features/profile/presentation/profile_page.dart';
+import 'package:readlive/features/reader/presentation/reader_page.dart';
+import 'package:readlive/features/settings/presentation/settings_page.dart';
+
+final _rootNavigatorKey = GlobalKey<NavigatorState>();
+final _shellNavigatorKey = GlobalKey<NavigatorState>();
+
+final appRouter = GoRouter(
+  navigatorKey: _rootNavigatorKey,
+  initialLocation: '/',
+  routes: [
+    ShellRoute(
+      navigatorKey: _shellNavigatorKey,
+      builder: (context, state, child) => MainShell(child: child),
+      routes: [
+        GoRoute(
+          path: '/',
+          pageBuilder: (context, state) => const NoTransitionPage(
+            child: BookshelfPage(contentType: 'novel'),
+          ),
+        ),
+        GoRoute(
+          path: '/manga',
+          pageBuilder: (context, state) => const NoTransitionPage(
+            child: BookshelfPage(contentType: 'manga'),
+          ),
+        ),
+        GoRoute(
+          path: '/profile',
+          pageBuilder: (context, state) => const NoTransitionPage(
+            child: ProfilePage(),
+          ),
+        ),
+      ],
+    ),
+    GoRoute(
+      path: '/reader/:bookId',
+      parentNavigatorKey: _rootNavigatorKey,
+      builder: (context, state) => ReaderPage(
+        bookId: state.pathParameters['bookId']!,
+      ),
+    ),
+    GoRoute(
+      path: '/settings',
+      parentNavigatorKey: _rootNavigatorKey,
+      builder: (context, state) => const SettingsPage(),
+    ),
+  ],
+);
+
+class MainShell extends StatelessWidget {
+  final Widget child;
+  const MainShell({super.key, required this.child});
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      body: child,
+      bottomNavigationBar: NavigationBar(
+        selectedIndex: _calculateSelectedIndex(context),
+        onDestinationSelected: (index) => _onItemTapped(index, context),
+        destinations: const [
+          NavigationDestination(
+            icon: Icon(Icons.book_outlined),
+            selectedIcon: Icon(Icons.book),
+            label: '书架',
+          ),
+          NavigationDestination(
+            icon: Icon(Icons.person_outline),
+            selectedIcon: Icon(Icons.person),
+            label: '我的',
+          ),
+        ],
+      ),
+    );
+  }
+
+  int _calculateSelectedIndex(BuildContext context) {
+    final location = GoRouterState.of(context).uri.path;
+    if (location.startsWith('/manga')) return 0;
+    if (location.startsWith('/profile')) return 1;
+    return 0;
+  }
+
+  void _onItemTapped(int index, BuildContext context) {
+    switch (index) {
+      case 0:
+        context.go('/');
+      case 1:
+        context.go('/profile');
+    }
+  }
+}
