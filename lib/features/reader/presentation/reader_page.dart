@@ -114,9 +114,11 @@ class _ReaderPageState extends ConsumerState<ReaderPage> {
       // Save reading position
       final readerState = ref.read(readerNotifierProvider(widget.bookId));
       final bookRepo = ref.read(bookRepositoryProvider);
+      final settings = ref.read(readingSettingsProvider);
+      final isScrollMode = settings.pageAnimation == 'scroll';
       final scrollOffset = _scrollController.hasClients ? _scrollController.offset : 0.0;
       final maxScroll = _scrollController.hasClients ? _scrollController.position.maxScrollExtent : 0.0;
-      final progress = maxScroll > 0 ? (scrollOffset / maxScroll).clamp(0.0, 1.0) : 0.0;
+      final progress = isScrollMode && maxScroll > 0 ? (scrollOffset / maxScroll).clamp(0.0, 1.0) : 0.0;
       bookRepo.updateReadingPosition(
         widget.bookId,
         readerState.currentChapterIndex,
@@ -160,9 +162,11 @@ class _ReaderPageState extends ConsumerState<ReaderPage> {
     // Save reading position
     final readerState = ref.read(readerNotifierProvider(widget.bookId));
     final bookRepo = ref.read(bookRepositoryProvider);
+    final settings = ref.read(readingSettingsProvider);
+    final isScrollMode = settings.pageAnimation == 'scroll';
     final scrollOffset = _scrollController.hasClients ? _scrollController.offset : 0.0;
     final maxScroll = _scrollController.hasClients ? _scrollController.position.maxScrollExtent : 0.0;
-    final progress = maxScroll > 0 ? (scrollOffset / maxScroll).clamp(0.0, 1.0) : 0.0;
+    final progress = isScrollMode && maxScroll > 0 ? (scrollOffset / maxScroll).clamp(0.0, 1.0) : 0.0;
     bookRepo.updateReadingPosition(
       widget.bookId,
       readerState.currentChapterIndex,
