@@ -14,6 +14,7 @@ class BooksTable extends Table {
   RealColumn get progress => real().withDefault(const Constant(0.0))();
   IntColumn get lastChapterIndex => integer().withDefault(const Constant(0))();
   RealColumn get lastScrollOffset => real().withDefault(const Constant(0.0))();
+  IntColumn get lastPageIndex => integer().withDefault(const Constant(0))();
   IntColumn get createdAt => integer()();
   IntColumn get updatedAt => integer()();
 

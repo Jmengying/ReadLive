@@ -94,6 +94,14 @@ class ReaderNotifier extends StateNotifier<ReaderState> {
     );
   }
 
+  void setChapterAndPage(int chapterIndex, int pageIndex) {
+    state = state.copyWith(
+      currentChapterIndex: chapterIndex,
+      currentPageIndex: pageIndex,
+      isToolbarVisible: false,
+    );
+  }
+
   void nextPage(int totalPages) {
     if (state.currentPageIndex < totalPages - 1) {
       state = state.copyWith(
@@ -122,8 +130,8 @@ class ReaderNotifier extends StateNotifier<ReaderState> {
     await _repo.updateProgress(_bookId, chapterProgress.clamp(0.0, 1.0));
   }
 
-  Future<void> saveReadingPosition(int chapterIndex, double scrollOffset) async {
-    await _repo.updateReadingPosition(_bookId, chapterIndex, scrollOffset);
+  Future<void> saveReadingPosition(int chapterIndex, double scrollOffset, {int pageIndex = 0}) async {
+    await _repo.updateReadingPosition(_bookId, chapterIndex, scrollOffset, pageIndex: pageIndex);
   }
 
   void setLastScrollOffset(double offset) {

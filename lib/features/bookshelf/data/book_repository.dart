@@ -74,14 +74,16 @@ class BookRepository {
   Future<void> updateReadingPosition(
     String bookId,
     int chapterIndex,
-    double scrollOffset,
-  ) async {
+    double scrollOffset, {
+    int pageIndex = 0,
+  }) async {
     final book = await _db.getBookById(bookId);
     if (book == null) return;
     final now = DateTime.now().millisecondsSinceEpoch;
     final companion = book.toCompanion(true).copyWith(
           lastChapterIndex: Value(chapterIndex),
           lastScrollOffset: Value(scrollOffset),
+          lastPageIndex: Value(pageIndex),
           lastReadAt: Value(now),
           updatedAt: Value(now),
         );

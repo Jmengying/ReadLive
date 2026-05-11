@@ -34,6 +34,7 @@ class _ReaderPageState extends ConsumerState<ReaderPage> {
   bool _showTts = false;
   final ScrollController _scrollController = ScrollController();
   int _lastScrollChapterIndex = -1;
+  bool _initialPageRestored = false;
   late DateTime _segmentStartTime;
   Timer? _saveTimer;
 
@@ -93,6 +94,7 @@ class _ReaderPageState extends ConsumerState<ReaderPage> {
         widget.bookId,
         readerState.currentChapterIndex,
         scrollOffset,
+        pageIndex: readerState.currentPageIndex,
       );
 
       final db = ref.read(databaseProvider);
@@ -135,6 +137,7 @@ class _ReaderPageState extends ConsumerState<ReaderPage> {
       widget.bookId,
       readerState.currentChapterIndex,
       scrollOffset,
+      pageIndex: readerState.currentPageIndex,
     );
 
     final db = ref.read(databaseProvider);
@@ -568,6 +571,19 @@ class _ReaderPageState extends ConsumerState<ReaderPage> {
                     return const Center(child: Text('章节内容为空'));
                   }
 
+                  // Restore saved page index on initial load
+                  if (!_initialPageRestored) {
+                    _initialPageRestored = true;
+                    final savedPage = book.lastPageIndex;
+                    if (savedPage > 0 && savedPage < pages.length) {
+                      WidgetsBinding.instance.addPostFrameCallback((_) {
+                        if (mounted) {
+                          notifier.setPage(savedPage);
+                        }
+                      });
+                    }
+                  }
+
                   final pageIndex = readerState.currentPageIndex.clamp(
                       0, pages.length - 1);
 
@@ -585,8 +601,10 @@ class _ReaderPageState extends ConsumerState<ReaderPage> {
                       final velocity = details.primaryVelocity ?? 0;
                       if (velocity < -200) {
                         notifier.nextPage(pages.length);
+                        _savePageIndex();
                       } else if (velocity > 200) {
                         notifier.previousPage();
+                        _savePageIndex();
                       }
                     },
                     child: Stack(
@@ -764,11 +782,23 @@ class _ReaderPageState extends ConsumerState<ReaderPage> {
 
     if (dx < leftBound) {
       notifier.previousPage();
+      _savePageIndex();
     } else if (dx > rightBound) {
       notifier.nextPage(totalPages);
+      _savePageIndex();
     } else {
       notifier.toggleToolbar();
     }
+  }
+
+  void _savePageIndex() {
+    final state = ref.read(readerNotifierProvider(widget.bookId));
+    ref.read(bookRepositoryProvider).updateReadingPosition(
+      widget.bookId,
+      state.currentChapterIndex,
+      0.0,
+      pageIndex: state.currentPageIndex,
+    );
   }
 
   void _showSwitchSourceSheet(dynamic book) {
