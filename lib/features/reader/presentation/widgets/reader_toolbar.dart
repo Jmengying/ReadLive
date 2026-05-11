@@ -15,6 +15,8 @@ class ReaderToolbar extends StatelessWidget {
   final VoidCallback? onAddBookmark;
   final ValueChanged<int> onChapterChange;
   final VoidCallback? onSwitchSource;
+  final VoidCallback onPreviousChapter;
+  final VoidCallback onNextChapter;
 
   const ReaderToolbar({
     super.key,
@@ -32,6 +34,8 @@ class ReaderToolbar extends StatelessWidget {
     this.onAddBookmark,
     required this.onChapterChange,
     this.onSwitchSource,
+    required this.onPreviousChapter,
+    required this.onNextChapter,
   });
 
   @override
@@ -106,6 +110,14 @@ class ReaderToolbar extends StatelessWidget {
                 mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                 children: [
                   IconButton(
+                    icon: Icon(
+                      Icons.skip_previous,
+                      color: currentChapter > 0 ? Colors.white : Colors.white30,
+                    ),
+                    onPressed: currentChapter > 0 ? onPreviousChapter : null,
+                    tooltip: '上一章',
+                  ),
+                  IconButton(
                     icon: const Icon(Icons.list, color: Colors.white),
                     onPressed: onShowChapters,
                     tooltip: '目录',
@@ -143,6 +155,14 @@ class ReaderToolbar extends StatelessWidget {
                       onPressed: onSwitchSource,
                       tooltip: '换源',
                     ),
+                  IconButton(
+                    icon: Icon(
+                      Icons.skip_next,
+                      color: currentChapter < totalChapters - 1 ? Colors.white : Colors.white30,
+                    ),
+                    onPressed: currentChapter < totalChapters - 1 ? onNextChapter : null,
+                    tooltip: '下一章',
+                  ),
                 ],
               ),
             ],

@@ -336,6 +336,12 @@ class _ReaderPageState extends ConsumerState<ReaderPage> {
                               onSwitchSource: book.sourceId != null
                                   ? () => _showSwitchSourceSheet(book)
                                   : null,
+                              onPreviousChapter: chapterIndex > 0
+                                  ? () => notifier.setChapter(chapterIndex - 1)
+                                  : () {},
+                              onNextChapter: chapterIndex < chapters.length - 1
+                                  ? () => notifier.setChapter(chapterIndex + 1)
+                                  : () {},
                             ),
                           if (readerState.isLocked)
                             Positioned(
@@ -467,6 +473,12 @@ class _ReaderPageState extends ConsumerState<ReaderPage> {
                               onSwitchSource: book.sourceId != null
                                   ? () => _showSwitchSourceSheet(book)
                                   : null,
+                              onPreviousChapter: chapterIndex > 0
+                                  ? () => notifier.setChapter(chapterIndex - 1)
+                                  : () {},
+                              onNextChapter: chapterIndex < chapters.length - 1
+                                  ? () => notifier.setChapter(chapterIndex + 1)
+                                  : () {},
                             ),
                           if (readerState.isLocked)
                             Positioned(
@@ -644,6 +656,12 @@ class _ReaderPageState extends ConsumerState<ReaderPage> {
                             onSwitchSource: book.sourceId != null
                                 ? () => _showSwitchSourceSheet(book)
                                 : null,
+                            onPreviousChapter: chapterIndex > 0
+                                ? () => notifier.setChapter(chapterIndex - 1)
+                                : () {},
+                            onNextChapter: chapterIndex < chapters.length - 1
+                                ? () => notifier.setChapter(chapterIndex + 1)
+                                : () {},
                           ),
                         if (readerState.isLocked)
                           Positioned(
