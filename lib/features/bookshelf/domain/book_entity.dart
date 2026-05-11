@@ -12,6 +12,8 @@ class BookEntity {
   final String? groupId;
   final int? lastReadAt;
   final double progress;
+  final int lastChapterIndex;
+  final double lastScrollOffset;
   final int createdAt;
   final int updatedAt;
 
@@ -27,6 +29,8 @@ class BookEntity {
     this.groupId,
     this.lastReadAt,
     this.progress = 0.0,
+    this.lastChapterIndex = 0,
+    this.lastScrollOffset = 0.0,
     required this.createdAt,
     required this.updatedAt,
   });
@@ -44,6 +48,8 @@ class BookEntity {
       groupId: data.groupId,
       lastReadAt: data.lastReadAt,
       progress: data.progress,
+      lastChapterIndex: data.lastChapterIndex,
+      lastScrollOffset: data.lastScrollOffset,
       createdAt: data.createdAt,
       updatedAt: data.updatedAt,
     );
