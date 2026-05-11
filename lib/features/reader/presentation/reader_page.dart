@@ -35,8 +35,10 @@ class _ReaderPageState extends ConsumerState<ReaderPage> {
   final ScrollController _scrollController = ScrollController();
   int _lastScrollChapterIndex = -1;
   bool _initialPageRestored = false;
+  double _pendingScrollRestore = -1;
   late DateTime _segmentStartTime;
   Timer? _saveTimer;
+  Timer? _scrollSaveTimer;
 
   @override
   void initState() {
@@ -45,6 +47,8 @@ class _ReaderPageState extends ConsumerState<ReaderPage> {
     _enableWakelock();
     // Save reading session every 30 seconds
     _saveTimer = Timer.periodic(const Duration(seconds: 30), (_) => _saveSegment());
+    // Save scroll position 1 second after user stops scrolling
+    _scrollController.addListener(_onScroll);
     if (widget.initialChapter > 0) {
       WidgetsBinding.instance.addPostFrameCallback((_) {
         ref.read(readerNotifierProvider(widget.bookId).notifier)
@@ -65,11 +69,29 @@ class _ReaderPageState extends ConsumerState<ReaderPage> {
   @override
   void dispose() {
     _saveTimer?.cancel();
+    _scrollSaveTimer?.cancel();
+    _scrollController.removeListener(_onScroll);
     // Save final segment before disposing
     _saveSegmentSync();
     _scrollController.dispose();
     WakelockPlus.disable();
     super.dispose();
+  }
+
+  void _onScroll() {
+    _scrollSaveTimer?.cancel();
+    _scrollSaveTimer = Timer(const Duration(seconds: 1), _saveScrollPosition);
+  }
+
+  void _saveScrollPosition() {
+    if (!_scrollController.hasClients) return;
+    final readerState = ref.read(readerNotifierProvider(widget.bookId));
+    final bookRepo = ref.read(bookRepositoryProvider);
+    bookRepo.updateReadingPosition(
+      widget.bookId,
+      readerState.currentChapterIndex,
+      _scrollController.offset,
+    );
   }
 
   void _saveSegmentSync() {
@@ -213,9 +235,14 @@ class _ReaderPageState extends ConsumerState<ReaderPage> {
                 _lastScrollChapterIndex = chapterIndex;
                 WidgetsBinding.instance.addPostFrameCallback((_) {
                   if (_scrollController.hasClients) {
+                    // If navigating to a specific scroll position
+                    if (_pendingScrollRestore >= 0) {
+                      final offset = _pendingScrollRestore;
+                      _pendingScrollRestore = -1;
+                      _scrollController.jumpTo(offset);
+                    }
                     // If this is the initial chapter (first load), restore saved offset
-                    final book = ref.read(currentBookProvider(widget.bookId)).valueOrNull;
-                    if (book != null && chapterIndex == book.lastChapterIndex && book.lastScrollOffset > 0) {
+                    else if (chapterIndex == book.lastChapterIndex && book.lastScrollOffset > 0) {
                       _scrollController.jumpTo(book.lastScrollOffset);
                     } else {
                       _scrollController.jumpTo(0);
@@ -334,16 +361,17 @@ class _ReaderPageState extends ConsumerState<ReaderPage> {
                               onAddBookmark: () =>
                                   _addBookmark(chapters[chapterIndex], 0),
                               onChapterChange: (index) {
+                                _saveScrollPosition();
                                 notifier.setChapter(index);
                               },
                               onSwitchSource: book.sourceId != null
                                   ? () => _showSwitchSourceSheet(book)
                                   : null,
                               onPreviousChapter: chapterIndex > 0
-                                  ? () => notifier.setChapter(chapterIndex - 1)
+                                  ? () { _saveScrollPosition(); notifier.setChapter(chapterIndex - 1); }
                                   : () {},
                               onNextChapter: chapterIndex < chapters.length - 1
-                                  ? () => notifier.setChapter(chapterIndex + 1)
+                                  ? () { _saveScrollPosition(); notifier.setChapter(chapterIndex + 1); }
                                   : () {},
                             ),
                           if (readerState.isLocked)
@@ -845,6 +873,7 @@ class _ReaderPageState extends ConsumerState<ReaderPage> {
                 itemBuilder: (ctx, index) => ListTile(
                   title: Text(chapters[index].title),
                   onTap: () {
+                    _saveScrollPosition();
                     ref
                         .read(readerNotifierProvider(widget.bookId).notifier)
                         .setChapter(index);
