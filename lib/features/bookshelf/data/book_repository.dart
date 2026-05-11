@@ -76,6 +76,7 @@ class BookRepository {
     int chapterIndex,
     double scrollOffset, {
     int pageIndex = 0,
+    double? progress,
   }) async {
     final book = await _db.getBookById(bookId);
     if (book == null) return;
@@ -84,6 +85,7 @@ class BookRepository {
           lastChapterIndex: Value(chapterIndex),
           lastScrollOffset: Value(scrollOffset),
           lastPageIndex: Value(pageIndex),
+          if (progress != null) progress: Value(progress),
           lastReadAt: Value(now),
           updatedAt: Value(now),
         );

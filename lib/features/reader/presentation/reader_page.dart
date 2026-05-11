@@ -85,12 +85,15 @@ class _ReaderPageState extends ConsumerState<ReaderPage> {
 
   void _saveScrollPosition() {
     if (!_scrollController.hasClients) return;
+    final maxScroll = _scrollController.position.maxScrollExtent;
+    final progress = maxScroll > 0 ? (_scrollController.offset / maxScroll).clamp(0.0, 1.0) : 0.0;
     final readerState = ref.read(readerNotifierProvider(widget.bookId));
     final bookRepo = ref.read(bookRepositoryProvider);
     bookRepo.updateReadingPosition(
       widget.bookId,
       readerState.currentChapterIndex,
       _scrollController.offset,
+      progress: progress,
     );
   }
 
@@ -112,11 +115,14 @@ class _ReaderPageState extends ConsumerState<ReaderPage> {
       final readerState = ref.read(readerNotifierProvider(widget.bookId));
       final bookRepo = ref.read(bookRepositoryProvider);
       final scrollOffset = _scrollController.hasClients ? _scrollController.offset : 0.0;
+      final maxScroll = _scrollController.hasClients ? _scrollController.position.maxScrollExtent : 0.0;
+      final progress = maxScroll > 0 ? (scrollOffset / maxScroll).clamp(0.0, 1.0) : 0.0;
       bookRepo.updateReadingPosition(
         widget.bookId,
         readerState.currentChapterIndex,
         scrollOffset,
         pageIndex: readerState.currentPageIndex,
+        progress: progress,
       );
 
       final db = ref.read(databaseProvider);
@@ -155,11 +161,14 @@ class _ReaderPageState extends ConsumerState<ReaderPage> {
     final readerState = ref.read(readerNotifierProvider(widget.bookId));
     final bookRepo = ref.read(bookRepositoryProvider);
     final scrollOffset = _scrollController.hasClients ? _scrollController.offset : 0.0;
+    final maxScroll = _scrollController.hasClients ? _scrollController.position.maxScrollExtent : 0.0;
+    final progress = maxScroll > 0 ? (scrollOffset / maxScroll).clamp(0.0, 1.0) : 0.0;
     bookRepo.updateReadingPosition(
       widget.bookId,
       readerState.currentChapterIndex,
       scrollOffset,
       pageIndex: readerState.currentPageIndex,
+      progress: progress,
     );
 
     final db = ref.read(databaseProvider);
@@ -241,9 +250,10 @@ class _ReaderPageState extends ConsumerState<ReaderPage> {
                       _pendingScrollRestore = -1;
                       _scrollController.jumpTo(offset);
                     }
-                    // If this is the initial chapter (first load), restore saved offset
-                    else if (chapterIndex == book.lastChapterIndex && book.lastScrollOffset > 0) {
-                      _scrollController.jumpTo(book.lastScrollOffset);
+                    // If this is the initial chapter (first load), restore from progress percentage
+                    else if (chapterIndex == book.lastChapterIndex && book.progress > 0) {
+                      final maxScroll = _scrollController.position.maxScrollExtent;
+                      _scrollController.jumpTo(maxScroll * book.progress);
                     } else {
                       _scrollController.jumpTo(0);
                     }
