@@ -38,12 +38,14 @@ class ReaderState {
   final int currentPageIndex;
   final bool isToolbarVisible;
   final bool isLocked;
+  final double lastScrollOffset;
 
   const ReaderState({
     this.currentChapterIndex = 0,
     this.currentPageIndex = 0,
     this.isToolbarVisible = false,
     this.isLocked = false,
+    this.lastScrollOffset = 0.0,
   });
 
   ReaderState copyWith({
@@ -51,12 +53,14 @@ class ReaderState {
     int? currentPageIndex,
     bool? isToolbarVisible,
     bool? isLocked,
+    double? lastScrollOffset,
   }) {
     return ReaderState(
       currentChapterIndex: currentChapterIndex ?? this.currentChapterIndex,
       currentPageIndex: currentPageIndex ?? this.currentPageIndex,
       isToolbarVisible: isToolbarVisible ?? this.isToolbarVisible,
       isLocked: isLocked ?? this.isLocked,
+      lastScrollOffset: lastScrollOffset ?? this.lastScrollOffset,
     );
   }
 }
@@ -116,6 +120,14 @@ class ReaderNotifier extends StateNotifier<ReaderState> {
     if (totalPages <= 0) return;
     final chapterProgress = pageIndex / totalPages;
     await _repo.updateProgress(_bookId, chapterProgress.clamp(0.0, 1.0));
+  }
+
+  Future<void> saveReadingPosition(int chapterIndex, double scrollOffset) async {
+    await _repo.updateReadingPosition(_bookId, chapterIndex, scrollOffset);
+  }
+
+  void setLastScrollOffset(double offset) {
+    state = state.copyWith(lastScrollOffset: offset);
   }
 }
 
