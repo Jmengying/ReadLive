@@ -10,6 +10,7 @@ import 'package:wakelock_plus/wakelock_plus.dart';
 import 'package:readlive/core/database/app_database.dart';
 import 'package:readlive/core/theme/app_theme.dart';
 import 'package:readlive/features/bookshelf/presentation/bookshelf_provider.dart';
+import 'package:readlive/features/bookshelf/domain/book_entity.dart';
 import 'package:readlive/features/settings/presentation/settings_provider.dart';
 import 'package:readlive/features/reader/domain/chapter_entity.dart';
 import 'package:readlive/features/reader/presentation/reader_provider.dart';
@@ -95,6 +96,31 @@ class _ReaderPageState extends ConsumerState<ReaderPage> {
       _scrollController.offset,
       progress: progress,
     );
+  }
+
+  void _tryRestoreScrollPosition(int chapterIndex, BookEntity book) {
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!_scrollController.hasClients) return;
+      final maxScroll = _scrollController.position.maxScrollExtent;
+      if (maxScroll <= 0) {
+        // Layout not done yet, retry next frame
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          if (!_scrollController.hasClients) return;
+          final ms = _scrollController.position.maxScrollExtent;
+          if (ms > 0 && chapterIndex == book.lastChapterIndex && book.progress > 0) {
+            _scrollController.jumpTo(ms * book.progress);
+          }
+        });
+        return;
+      }
+      if (_pendingScrollRestore >= 0) {
+        final offset = _pendingScrollRestore;
+        _pendingScrollRestore = -1;
+        _scrollController.jumpTo(offset);
+      } else if (chapterIndex == book.lastChapterIndex && book.progress > 0) {
+        _scrollController.jumpTo(maxScroll * book.progress);
+      }
+    });
   }
 
   void _saveSegmentSync() {
@@ -243,26 +269,9 @@ class _ReaderPageState extends ConsumerState<ReaderPage> {
               final screenSize = MediaQuery.of(context).size;
               final isScrollMode = readingSettings.pageAnimation == 'scroll';
 
-              // Reset scroll position when chapter changes in scroll mode
+              // Mark chapter change in scroll mode (actual restore happens after content loads)
               if (isScrollMode && _lastScrollChapterIndex != chapterIndex) {
                 _lastScrollChapterIndex = chapterIndex;
-                WidgetsBinding.instance.addPostFrameCallback((_) {
-                  if (_scrollController.hasClients) {
-                    // If navigating to a specific scroll position
-                    if (_pendingScrollRestore >= 0) {
-                      final offset = _pendingScrollRestore;
-                      _pendingScrollRestore = -1;
-                      _scrollController.jumpTo(offset);
-                    }
-                    // If this is the initial chapter (first load), restore from progress percentage
-                    else if (chapterIndex == book.lastChapterIndex && book.progress > 0) {
-                      final maxScroll = _scrollController.position.maxScrollExtent;
-                      _scrollController.jumpTo(maxScroll * book.progress);
-                    } else {
-                      _scrollController.jumpTo(0);
-                    }
-                  }
-                });
               }
 
               if (isScrollMode) {
@@ -314,6 +323,9 @@ class _ReaderPageState extends ConsumerState<ReaderPage> {
                   ),
                   data: (chapterContent) {
                     final isManga = book.contentType == 'manga';
+
+                    // Restore scroll position now that content is loaded
+                    _tryRestoreScrollPosition(chapterIndex, book);
 
                     return GestureDetector(
                       onTapUp: (details) {
