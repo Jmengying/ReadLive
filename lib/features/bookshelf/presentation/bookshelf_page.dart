@@ -172,11 +172,13 @@ class _BookshelfPageState extends ConsumerState<BookshelfPage>
               groupId: _activeGroupId,
               selectionMode: _selectionMode,
               selectedBooks: _selectedBooks,
-              onTap: (bookId) {
+              onTap: (book) {
                 if (_selectionMode) {
-                  _toggleSelection(bookId);
+                  _toggleSelection(book.id);
                 } else {
-                  context.push('/reader/$bookId');
+                  final chapter = book.lastChapterIndex;
+                  final query = chapter > 0 ? '?chapter=$chapter' : '';
+                  context.push('/reader/${book.id}$query');
                 }
               },
               onLongPress: (bookId) {
@@ -372,7 +374,7 @@ class _BookList extends ConsumerWidget {
   final String? groupId;
   final bool selectionMode;
   final Set<String> selectedBooks;
-  final void Function(String bookId) onTap;
+  final void Function(BookEntity book) onTap;
   final void Function(String bookId) onLongPress;
 
   const _BookList({
@@ -425,7 +427,7 @@ class _BookList extends ConsumerWidget {
               book: book,
               selected: selectedBooks.contains(book.id),
               selectionMode: selectionMode,
-              onTap: () => onTap(book.id),
+              onTap: () => onTap(book),
               onLongPress: () => onLongPress(book.id),
             );
           },
