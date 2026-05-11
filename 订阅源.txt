@@ -1,0 +1,9 @@
+名称	相关网址
+通用书源　　　	https://raw.githubusercontent.com/DowneyRem/PixivSource/main/normal.json
+聚合搜索　　　	https://raw.githubusercontent.com/DowneyRem/PixivSource/main/books.json
+书源订阅　　　	https://raw.githubusercontent.com/DowneyRem/PixivSource/main/import.json
+Pixiv目录规则	https://raw.githubusercontent.com/DowneyRem/PixivSource/main/pixivToc.json
+通用书源 ：是不世玄奇 为网文网站编写的通用书源，用搜索引擎获取全网小说。
+聚合搜索 ：是不世玄奇 制作的聚合多个搜索引擎的订阅源，需要配合 通用书源 使用。(集入 books 订阅源)
+书源订阅 ：是Thomas喲 制作的第三方规则订阅，旨在快速导入书源/订阅源。(已修改)
+Pixiv 目录规则 ：是一片痴心俱成灰 为 Pixiv 本地小说制作的目录规则
