@@ -1,7 +1,9 @@
 import 'dart:convert';
+import 'package:dio/dio.dart';
 import 'package:drift/drift.dart';
 import 'package:uuid/uuid.dart';
 import 'package:readlive/core/database/app_database.dart';
+import 'package:readlive/core/network/http_client.dart';
 import 'package:readlive/features/book_source/domain/book_source_entity.dart';
 import 'package:readlive/features/book_source/domain/source_rule.dart';
 
@@ -170,6 +172,35 @@ class BookSourceRepository {
       }
     }
     return (count, errors);
+  }
+
+  /// Import sources from one or more URLs.
+  /// Returns (successCount, errorMessages).
+  Future<(int, List<String>)> importFromUrls(List<String> urls, {bool builtIn = false}) async {
+    final httpClient = HttpClient();
+    var totalCount = 0;
+    final allErrors = <String>[];
+
+    for (final url in urls) {
+      try {
+        final response = await httpClient.dio.get<String>(
+          url.trim(),
+          options: Options(responseType: ResponseType.plain),
+        );
+        final json = response.data ?? '';
+        if (json.isEmpty) {
+          allErrors.add('$url: 返回内容为空');
+          continue;
+        }
+        final (count, errors) = await importFromJson(json, builtIn: builtIn);
+        totalCount += count;
+        allErrors.addAll(errors.map((e) => '$url: $e'));
+      } catch (e) {
+        allErrors.add('$url: 下载失败 - $e');
+      }
+    }
+
+    return (totalCount, allErrors);
   }
 
   /// Export all sources as a JSON string.

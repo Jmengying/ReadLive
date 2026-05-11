@@ -465,53 +465,87 @@ class _BookSourcePageState extends ConsumerState<BookSourcePage> {
 
   void _showImportDialog(BuildContext context, WidgetRef ref) {
     final controller = TextEditingController();
+    final urlController = TextEditingController();
     showDialog(
       context: context,
       builder: (ctx) => AlertDialog(
         title: const Text('导入书源'),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            // File picker button
-            SizedBox(
-              width: double.infinity,
-              child: OutlinedButton.icon(
-                icon: const Icon(Icons.folder_open),
-                label: const Text('从 JSON 文件导入'),
-                onPressed: () => _importFromFile(context, ref, ctx),
-              ),
-            ),
-            const SizedBox(height: 12),
-            const Row(
-              children: [
-                Expanded(child: Divider()),
-                Padding(
-                  padding: EdgeInsets.symmetric(horizontal: 8),
-                  child: Text('或', style: TextStyle(color: Colors.grey)),
+        content: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              // File picker button
+              SizedBox(
+                width: double.infinity,
+                child: OutlinedButton.icon(
+                  icon: const Icon(Icons.folder_open),
+                  label: const Text('从 JSON 文件导入'),
+                  onPressed: () => _importFromFile(context, ref, ctx),
                 ),
-                Expanded(child: Divider()),
-              ],
-            ),
-            const SizedBox(height: 12),
-            // Text paste area
-            TextField(
-              controller: controller,
-              maxLines: 8,
-              decoration: const InputDecoration(
-                hintText: '粘贴书源 JSON...',
-                border: OutlineInputBorder(),
               ),
-            ),
-            const SizedBox(height: 8),
-            // Format example button
-            Align(
-              alignment: Alignment.centerRight,
-              child: TextButton(
-                onPressed: () => _showFormatExample(context),
-                child: const Text('查看格式示例'),
+              const SizedBox(height: 12),
+              // URL import section
+              const Row(
+                children: [
+                  Expanded(child: Divider()),
+                  Padding(
+                    padding: EdgeInsets.symmetric(horizontal: 8),
+                    child: Text('从 URL 导入', style: TextStyle(color: Colors.grey)),
+                  ),
+                  Expanded(child: Divider()),
+                ],
               ),
-            ),
-          ],
+              const SizedBox(height: 12),
+              TextField(
+                controller: urlController,
+                maxLines: 4,
+                decoration: const InputDecoration(
+                  hintText: '粘贴书源 URL，多个 URL 每行一个...',
+                  border: OutlineInputBorder(),
+                ),
+              ),
+              const SizedBox(height: 8),
+              SizedBox(
+                width: double.infinity,
+                child: OutlinedButton.icon(
+                  icon: const Icon(Icons.link),
+                  label: const Text('从 URL 导入'),
+                  onPressed: () => _importFromUrls(context, ref, ctx, urlController.text),
+                ),
+              ),
+              const SizedBox(height: 12),
+              // JSON paste section
+              const Row(
+                children: [
+                  Expanded(child: Divider()),
+                  Padding(
+                    padding: EdgeInsets.symmetric(horizontal: 8),
+                    child: Text('或粘贴 JSON', style: TextStyle(color: Colors.grey)),
+                  ),
+                  Expanded(child: Divider()),
+                ],
+              ),
+              const SizedBox(height: 12),
+              // Text paste area
+              TextField(
+                controller: controller,
+                maxLines: 8,
+                decoration: const InputDecoration(
+                  hintText: '粘贴书源 JSON...',
+                  border: OutlineInputBorder(),
+                ),
+              ),
+              const SizedBox(height: 8),
+              // Format example button
+              Align(
+                alignment: Alignment.centerRight,
+                child: TextButton(
+                  onPressed: () => _showFormatExample(context),
+                  child: const Text('查看格式示例'),
+                ),
+              ),
+            ],
+          ),
         ),
         actions: [
           TextButton(
@@ -529,11 +563,65 @@ class _BookSourcePageState extends ConsumerState<BookSourcePage> {
               }
               await _doImport(context, ref, ctx, json);
             },
-            child: const Text('导入'),
+            child: const Text('导入 JSON'),
           ),
         ],
       ),
     );
+  }
+
+  Future<void> _importFromUrls(
+      BuildContext context, WidgetRef ref, BuildContext ctx, String urlText) async {
+    final urls = urlText.split('\n').where((u) => u.trim().isNotEmpty).toList();
+    if (urls.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('请输入至少一个 URL')),
+      );
+      return;
+    }
+
+    try {
+      final repo = ref.read(bookSourceRepositoryProvider);
+      final (count, errors) = await repo.importFromUrls(urls);
+      if (ctx.mounted) {
+        Navigator.pop(ctx);
+        if (count > 0 && errors.isEmpty) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text('已从 URL 导入 $count 个书源')),
+          );
+        } else if (count > 0 && errors.isNotEmpty) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('已导入 $count 个，${errors.length} 个失败'),
+              duration: const Duration(seconds: 5),
+            ),
+          );
+        } else if (errors.isNotEmpty) {
+          showDialog(
+            context: context,
+            builder: (ctx) => AlertDialog(
+              title: const Text('导入失败'),
+              content: SingleChildScrollView(
+                child: Text(errors.join('\n')),
+              ),
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.pop(ctx),
+                  child: const Text('确定'),
+                ),
+              ],
+            ),
+          );
+        }
+      }
+    } catch (e) {
+      if (ctx.mounted) {
+        Navigator.pop(ctx);
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('URL 导入失败: $e')),
+        );
+      }
+    }
   }
 
   Future<void> _importFromFile(
