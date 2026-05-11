@@ -24,18 +24,18 @@ class AppDatabase extends _$AppDatabase {
           if (from < 3) {
             await m.createTable(bookGroupsTable);
             await m.createTable(readingSessionsTable);
-            await m.addColumn(booksTable, booksTable.groupId);
+            await _safeAddColumn(m, booksTable, booksTable.groupId);
           }
           if (from < 4) {
-            await m.addColumn(bookmarksTable, bookmarksTable.startOffset);
-            await m.addColumn(bookmarksTable, bookmarksTable.endOffset);
+            await _safeAddColumn(m, bookmarksTable, bookmarksTable.startOffset);
+            await _safeAddColumn(m, bookmarksTable, bookmarksTable.endOffset);
           }
           if (from < 5) {
-            await m.addColumn(bookSourcesTable, bookSourcesTable.builtIn);
+            await _safeAddColumn(m, bookSourcesTable, bookSourcesTable.builtIn);
           }
           if (from < 6) {
-            await m.addColumn(booksTable, booksTable.lastChapterIndex);
-            await m.addColumn(booksTable, booksTable.lastScrollOffset);
+            await _safeAddColumn(m, booksTable, booksTable.lastChapterIndex);
+            await _safeAddColumn(m, booksTable, booksTable.lastScrollOffset);
           }
         },
       );
@@ -199,6 +199,15 @@ class AppDatabase extends _$AppDatabase {
 
   Future<int> deleteBookSource(String id) =>
       (delete(bookSourcesTable)..where((t) => t.id.equals(id))).go();
+}
+
+Future<void> _safeAddColumn(
+    Migrator m, TableInfo table, GeneratedColumn column) async {
+  try {
+    await m.addColumn(table, column);
+  } catch (_) {
+    // Column already exists, skip
+  }
 }
 
 LazyDatabase _openConnection() {
