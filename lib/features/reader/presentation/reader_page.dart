@@ -72,7 +72,9 @@ class _ReaderPageState extends ConsumerState<ReaderPage> {
     _saveTimer?.cancel();
     _scrollSaveTimer?.cancel();
     _scrollController.removeListener(_onScroll);
-    // Save final segment before disposing
+    // Save scroll position synchronously before disposing
+    _saveScrollPositionSync();
+    // Save final reading session before disposing
     _saveSegmentSync();
     _scrollController.dispose();
     WakelockPlus.disable();
@@ -98,28 +100,45 @@ class _ReaderPageState extends ConsumerState<ReaderPage> {
     );
   }
 
+  void _saveScrollPositionSync() {
+    if (!_scrollController.hasClients) return;
+    final maxScroll = _scrollController.position.maxScrollExtent;
+    final progress = maxScroll > 0 ? (_scrollController.offset / maxScroll).clamp(0.0, 1.0) : 0.0;
+    final readerState = ref.read(readerNotifierProvider(widget.bookId));
+    final bookRepo = ref.read(bookRepositoryProvider);
+    bookRepo.updateReadingPosition(
+      widget.bookId,
+      readerState.currentChapterIndex,
+      _scrollController.offset,
+      progress: progress,
+    );
+  }
+
   void _tryRestoreScrollPosition(int chapterIndex, BookEntity book) {
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (!_scrollController.hasClients) return;
-      final maxScroll = _scrollController.position.maxScrollExtent;
-      if (maxScroll <= 0) {
-        // Layout not done yet, retry next frame
-        WidgetsBinding.instance.addPostFrameCallback((_) {
-          if (!_scrollController.hasClients) return;
-          final ms = _scrollController.position.maxScrollExtent;
-          if (ms > 0 && chapterIndex == book.lastChapterIndex && book.progress > 0) {
-            _scrollController.jumpTo(ms * book.progress);
-          }
-        });
-        return;
-      }
-      if (_pendingScrollRestore >= 0) {
-        final offset = _pendingScrollRestore;
-        _pendingScrollRestore = -1;
-        _scrollController.jumpTo(offset);
-      } else if (chapterIndex == book.lastChapterIndex && book.progress > 0) {
-        _scrollController.jumpTo(maxScroll * book.progress);
-      }
+    // Fetch fresh data from DB (provider may have stale cache)
+    final bookRepo = ref.read(bookRepositoryProvider);
+    bookRepo.getBookById(widget.bookId).then((freshBook) {
+      if (freshBook == null) return;
+      final savedProgress = freshBook.progress;
+      final savedChapter = freshBook.lastChapterIndex;
+      if (savedProgress <= 0 || chapterIndex != savedChapter) return;
+
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (!_scrollController.hasClients) return;
+        final maxScroll = _scrollController.position.maxScrollExtent;
+        if (maxScroll <= 0) {
+          // Layout not done yet, retry next frame
+          WidgetsBinding.instance.addPostFrameCallback((_) {
+            if (!_scrollController.hasClients) return;
+            final ms = _scrollController.position.maxScrollExtent;
+            if (ms > 0) {
+              _scrollController.jumpTo(ms * savedProgress);
+            }
+          });
+          return;
+        }
+        _scrollController.jumpTo(maxScroll * savedProgress);
+      });
     });
   }
 
@@ -127,6 +146,7 @@ class _ReaderPageState extends ConsumerState<ReaderPage> {
     try {
       final now = DateTime.now();
       final durationSeconds = now.difference(_segmentStartTime).inSeconds;
+      // Skip session save if reading time is too short (progress already saved by _saveScrollPositionSync)
       if (durationSeconds < 3) return;
 
       int wordsRead = 0;
@@ -136,22 +156,6 @@ class _ReaderPageState extends ConsumerState<ReaderPage> {
         final idx = readerState.currentChapterIndex.clamp(0, chaptersValue.length - 1);
         wordsRead = (chaptersValue[idx].content ?? '').length;
       }
-
-      // Save reading position
-      final readerState = ref.read(readerNotifierProvider(widget.bookId));
-      final bookRepo = ref.read(bookRepositoryProvider);
-      final settings = ref.read(readingSettingsProvider);
-      final isScrollMode = settings.pageAnimation == 'scroll';
-      final scrollOffset = _scrollController.hasClients ? _scrollController.offset : 0.0;
-      final maxScroll = _scrollController.hasClients ? _scrollController.position.maxScrollExtent : 0.0;
-      final progress = isScrollMode && maxScroll > 0 ? (scrollOffset / maxScroll).clamp(0.0, 1.0) : 0.0;
-      bookRepo.updateReadingPosition(
-        widget.bookId,
-        readerState.currentChapterIndex,
-        scrollOffset,
-        pageIndex: readerState.currentPageIndex,
-        progress: progress,
-      );
 
       final db = ref.read(databaseProvider);
       db.insertReadingSession(ReadingSessionsTableCompanion(
