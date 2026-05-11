@@ -34,10 +34,6 @@ class _ReaderPageState extends ConsumerState<ReaderPage> {
   bool _showTts = false;
   final ScrollController _scrollController = ScrollController();
   int _lastScrollChapterIndex = -1;
-  int _overscrollTopCount = 0;
-  int _overscrollBottomCount = 0;
-  DateTime _lastOverscrollTop = DateTime.fromMillisecondsSinceEpoch(0);
-  DateTime _lastOverscrollBottom = DateTime.fromMillisecondsSinceEpoch(0);
   late DateTime _segmentStartTime;
   Timer? _saveTimer;
 
@@ -89,6 +85,16 @@ class _ReaderPageState extends ConsumerState<ReaderPage> {
         wordsRead = (chaptersValue[idx].content ?? '').length;
       }
 
+      // Save reading position
+      final readerState = ref.read(readerNotifierProvider(widget.bookId));
+      final bookRepo = ref.read(bookRepositoryProvider);
+      final scrollOffset = _scrollController.hasClients ? _scrollController.offset : 0.0;
+      bookRepo.updateReadingPosition(
+        widget.bookId,
+        readerState.currentChapterIndex,
+        scrollOffset,
+      );
+
       final db = ref.read(databaseProvider);
       db.insertReadingSession(ReadingSessionsTableCompanion(
         id: Value(const Uuid().v4()),
@@ -120,6 +126,16 @@ class _ReaderPageState extends ConsumerState<ReaderPage> {
       final idx = readerState.currentChapterIndex.clamp(0, chaptersValue.length - 1);
       wordsRead = (chaptersValue[idx].content ?? '').length;
     }
+
+    // Save reading position
+    final readerState = ref.read(readerNotifierProvider(widget.bookId));
+    final bookRepo = ref.read(bookRepositoryProvider);
+    final scrollOffset = _scrollController.hasClients ? _scrollController.offset : 0.0;
+    bookRepo.updateReadingPosition(
+      widget.bookId,
+      readerState.currentChapterIndex,
+      scrollOffset,
+    );
 
     final db = ref.read(databaseProvider);
     db.insertReadingSession(ReadingSessionsTableCompanion(
@@ -192,9 +208,17 @@ class _ReaderPageState extends ConsumerState<ReaderPage> {
               // Reset scroll position when chapter changes in scroll mode
               if (isScrollMode && _lastScrollChapterIndex != chapterIndex) {
                 _lastScrollChapterIndex = chapterIndex;
-                if (_scrollController.hasClients) {
-                  _scrollController.jumpTo(0);
-                }
+                WidgetsBinding.instance.addPostFrameCallback((_) {
+                  if (_scrollController.hasClients) {
+                    // If this is the initial chapter (first load), restore saved offset
+                    final book = ref.read(currentBookProvider(widget.bookId)).valueOrNull;
+                    if (book != null && chapterIndex == book.lastChapterIndex && book.lastScrollOffset > 0) {
+                      _scrollController.jumpTo(book.lastScrollOffset);
+                    } else {
+                      _scrollController.jumpTo(0);
+                    }
+                  }
+                });
               }
 
               if (isScrollMode) {
@@ -203,12 +227,6 @@ class _ReaderPageState extends ConsumerState<ReaderPage> {
                   bookId: widget.bookId,
                   chapterIndex: chapterIndex,
                 )));
-
-                // Reset overscroll counters when chapter changes
-                if (_lastScrollChapterIndex != chapterIndex) {
-                  _overscrollTopCount = 0;
-                  _overscrollBottomCount = 0;
-                }
 
                 return contentAsync.when(
                   loading: () => Container(
@@ -257,14 +275,14 @@ class _ReaderPageState extends ConsumerState<ReaderPage> {
                       onTapUp: (details) {
                         if (isManga) {
                           _handleMangaTap(details, screenSize, notifier);
-                        } else {
-                          _handleScrollTap(
-                              details, screenSize, notifier, readingSettings,
-                              chapterIndex, chapters.length);
                         }
                       },
                       onDoubleTap: () {
-                        if (readerState.isLocked) notifier.toggleLock();
+                        if (readerState.isLocked) {
+                          notifier.toggleLock();
+                        } else {
+                          notifier.toggleToolbar();
+                        }
                       },
                       child: Stack(
                         children: [
@@ -277,58 +295,24 @@ class _ReaderPageState extends ConsumerState<ReaderPage> {
                                     readingMode: 'scroll',
                                     backgroundColor: bgColor,
                                   )
-                                : NotificationListener<ScrollNotification>(
-                              onNotification: (notification) {
-                                if (notification is OverscrollNotification &&
-                                    !readerState.isLocked) {
-                                  final now = DateTime.now();
-                                  if (notification.overscroll < -50 &&
-                                      chapterIndex > 0) {
-                                    if (now.difference(_lastOverscrollTop).inMilliseconds < 800) {
-                                      _overscrollTopCount++;
-                                    } else {
-                                      _overscrollTopCount = 1;
-                                    }
-                                    _lastOverscrollTop = now;
-                                    if (_overscrollTopCount >= 2) {
-                                      _overscrollTopCount = 0;
-                                      notifier.setChapter(chapterIndex - 1);
-                                    }
-                                  } else if (notification.overscroll > 50 &&
-                                      chapterIndex < chapters.length - 1) {
-                                    if (now.difference(_lastOverscrollBottom).inMilliseconds < 800) {
-                                      _overscrollBottomCount++;
-                                    } else {
-                                      _overscrollBottomCount = 1;
-                                    }
-                                    _lastOverscrollBottom = now;
-                                    if (_overscrollBottomCount >= 2) {
-                                      _overscrollBottomCount = 0;
-                                      notifier.setChapter(chapterIndex + 1);
-                                    }
-                                  }
-                                }
-                                return false;
-                              },
-                              child: SingleChildScrollView(
-                                controller: _scrollController,
-                                padding: const EdgeInsets.all(16),
-                                child: TextContentView(
-                                  text: chapterContent,
-                                  fontSize: readingSettings.fontSize,
-                                  lineHeight: readingSettings.lineHeight,
-                                  textColor: textColor,
-                                  backgroundColor: bgColor,
-                                  fontFamily: readingSettings.fontFamily,
-                                  fontWeight: readingSettings.fontWeight,
-                                  firstLineIndent: readingSettings.firstLineIndent,
-                                  letterSpacing: readingSettings.letterSpacing,
-                                  eyeProtection: readingSettings.eyeProtection,
-                                  eyeProtectionIntensity: readingSettings.eyeProtectionIntensity,
-                                  scrollable: false,
-                                ),
-                              ),
-                            ),
+                                : SingleChildScrollView(
+                                    controller: _scrollController,
+                                    padding: const EdgeInsets.all(16),
+                                    child: TextContentView(
+                                      text: chapterContent,
+                                      fontSize: readingSettings.fontSize,
+                                      lineHeight: readingSettings.lineHeight,
+                                      textColor: textColor,
+                                      backgroundColor: bgColor,
+                                      fontFamily: readingSettings.fontFamily,
+                                      fontWeight: readingSettings.fontWeight,
+                                      firstLineIndent: readingSettings.firstLineIndent,
+                                      letterSpacing: readingSettings.letterSpacing,
+                                      eyeProtection: readingSettings.eyeProtection,
+                                      eyeProtectionIntensity: readingSettings.eyeProtectionIntensity,
+                                      scrollable: false,
+                                    ),
+                                  ),
                           ),
                           if (readerState.isToolbarVisible)
                             ReaderToolbar(
@@ -766,53 +750,6 @@ class _ReaderPageState extends ConsumerState<ReaderPage> {
       notifier.nextPage(totalPages);
     } else {
       notifier.toggleToolbar();
-    }
-  }
-
-  void _handleScrollTap(TapUpDetails details, Size screenSize,
-      ReaderNotifier notifier, ReadingSettings settings,
-      int chapterIndex, int totalChapters) {
-    if (ref.read(readerNotifierProvider(widget.bookId)).isLocked) return;
-
-    final dy = details.globalPosition.dy;
-    final height = screenSize.height;
-    final dx = details.globalPosition.dx;
-    final width = screenSize.width;
-
-    // Center area: toggle toolbar
-    final leftBound = width * settings.tapZoneLeft;
-    final rightBound = width * (1 - settings.tapZoneRight);
-    if (dx >= leftBound && dx <= rightBound) {
-      notifier.toggleToolbar();
-      return;
-    }
-
-    // Top area: scroll up or switch to previous chapter
-    if (dy < height * 0.3) {
-      if (_scrollController.hasClients && _scrollController.offset > 0) {
-        _scrollController.animateTo(
-          (_scrollController.offset - height * 0.6).clamp(
-              0, _scrollController.position.maxScrollExtent),
-          duration: const Duration(milliseconds: 300),
-          curve: Curves.easeOut,
-        );
-      } else if (chapterIndex > 0) {
-        notifier.setChapter(chapterIndex - 1);
-      }
-    }
-    // Bottom area: scroll down or switch to next chapter
-    else if (dy > height * 0.7) {
-      if (_scrollController.hasClients &&
-          _scrollController.offset < _scrollController.position.maxScrollExtent) {
-        _scrollController.animateTo(
-          (_scrollController.offset + height * 0.6).clamp(
-              0, _scrollController.position.maxScrollExtent),
-          duration: const Duration(milliseconds: 300),
-          curve: Curves.easeOut,
-        );
-      } else if (chapterIndex < totalChapters - 1) {
-        notifier.setChapter(chapterIndex + 1);
-      }
     }
   }
 
