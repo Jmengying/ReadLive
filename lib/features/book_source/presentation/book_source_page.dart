@@ -474,6 +474,16 @@ class _BookSourcePageState extends ConsumerState<BookSourcePage> {
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
+              // Quick import: Pixiv sources
+              SizedBox(
+                width: double.infinity,
+                child: OutlinedButton.icon(
+                  icon: const Icon(Icons.auto_awesome),
+                  label: const Text('一键导入 Pixiv 书源'),
+                  onPressed: () => _importPixivSources(context, ref, ctx),
+                ),
+              ),
+              const SizedBox(height: 12),
               // File picker button
               SizedBox(
                 width: double.infinity,
@@ -619,6 +629,43 @@ class _BookSourcePageState extends ConsumerState<BookSourcePage> {
         Navigator.pop(ctx);
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text('URL 导入失败: $e')),
+        );
+      }
+    }
+  }
+
+  Future<void> _importPixivSources(
+      BuildContext context, WidgetRef ref, BuildContext ctx) async {
+    const pixivUrls = [
+      'https://raw.githubusercontent.com/DowneyRem/PixivSource/main/normal.json',
+      'https://raw.githubusercontent.com/DowneyRem/PixivSource/main/books.json',
+      'https://raw.githubusercontent.com/DowneyRem/PixivSource/main/import.json',
+      'https://raw.githubusercontent.com/DowneyRem/PixivSource/main/pixivToc.json',
+    ];
+
+    try {
+      final repo = ref.read(bookSourceRepositoryProvider);
+      final (count, errors) = await repo.importFromUrls(pixivUrls);
+      if (ctx.mounted) {
+        Navigator.pop(ctx);
+        if (count > 0) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text('已导入 $count 个 Pixiv 书源')),
+          );
+        } else {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('Pixiv 书源导入失败: ${errors.join(", ")}'),
+              duration: const Duration(seconds: 5),
+            ),
+          );
+        }
+      }
+    } catch (e) {
+      if (ctx.mounted) {
+        Navigator.pop(ctx);
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Pixiv 书源导入失败: $e')),
         );
       }
     }
