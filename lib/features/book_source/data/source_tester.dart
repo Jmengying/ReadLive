@@ -1,6 +1,7 @@
 import 'package:readlive/core/network/url_utils.dart';
 import 'package:readlive/features/book_source/data/content_extractor.dart';
 import 'package:readlive/features/book_source/data/html_fetcher.dart';
+import 'package:readlive/features/book_source/data/rule_context.dart';
 import 'package:readlive/features/book_source/data/rule_parser.dart';
 import 'package:readlive/features/book_source/domain/book_source_entity.dart';
 
@@ -56,6 +57,7 @@ class SourceTester {
         _parser = parser ?? RuleParser();
 
   Future<SourceTestResult> testSource(BookSourceEntity source) async {
+    final context = RuleContext();
     final stopwatch = Stopwatch()..start();
     bool? searchOk;
     bool? tocOk;
@@ -75,6 +77,7 @@ class SourceTester {
           final rawUrl = _parser.resolveTemplate(
             rule.search!.url,
             {'key': _testKeyword, 'page': '1'},
+            context: context,
           );
 
           // Handle @post: prefix (Legado format)
@@ -90,7 +93,7 @@ class SourceTester {
           }
 
           final results = _extractor.extractSearchResults(
-            html, rule.search!, source.id, source.name,
+            html, rule.search!, source.id, source.name, context: context,
           );
           resultCount = results.length;
           searchOk = results.isNotEmpty;
@@ -113,6 +116,7 @@ class SourceTester {
               rule.bookInfo!.tocUrl!.isNotEmpty) {
             final tocUrlPart = _parser.resolveTemplate(
               rule.bookInfo!.tocUrl!, {'bookUrl': bookUrl},
+              context: context,
             );
             tocUrl = resolveUrl(source.host, tocUrlPart);
           }
@@ -121,7 +125,7 @@ class SourceTester {
               ? bookHtml
               : await _fetcher.fetch(tocUrl);
 
-          final chapters = _extractor.extractToc(tocHtml, rule.toc!);
+          final chapters = _extractor.extractToc(tocHtml, rule.toc!, context: context);
           chapterCount = chapters.length;
           tocOk = chapters.isNotEmpty;
           if (chapters.isNotEmpty) {
@@ -140,7 +144,7 @@ class SourceTester {
               ? rule.content!.encoding
               : null;
           final html = await _fetcher.fetch(chapterUrl, encoding: encoding);
-          final content = _extractor.extractChapterContent(html, rule.content!);
+          final content = _extractor.extractChapterContent(html, rule.content!, context: context);
           contentLength = content.length;
           contentOk = content.length > 100;
         } catch (_) {

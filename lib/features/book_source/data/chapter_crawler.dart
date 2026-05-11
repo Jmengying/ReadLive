@@ -3,6 +3,7 @@ import 'package:dio/dio.dart';
 import 'package:readlive/core/network/url_utils.dart';
 import 'package:readlive/features/book_source/data/content_extractor.dart';
 import 'package:readlive/features/book_source/data/html_fetcher.dart';
+import 'package:readlive/features/book_source/data/rule_context.dart';
 import 'package:readlive/features/book_source/domain/source_rule.dart';
 
 class ChapterCrawler {
@@ -26,6 +27,7 @@ class ChapterCrawler {
     required String host,
     CancelToken? cancelToken,
   }) async {
+    final context = RuleContext();
     final parts = <String>[];
     var url = chapterUrl;
     var pageCount = 0;
@@ -43,7 +45,7 @@ class ChapterCrawler {
         cancelToken: cancelToken,
       );
 
-      final content = _extractor.extractChapterContent(html, contentRule);
+      final content = _extractor.extractChapterContent(html, contentRule, context: context);
       if (content.isNotEmpty) {
         parts.add(content);
       }
@@ -52,6 +54,7 @@ class ChapterCrawler {
       final nextPageUrl = _extractor.extractNextPageUrl(
         html,
         contentRule.nextPage,
+        context: context,
       );
 
       if (nextPageUrl != null && nextPageUrl.isNotEmpty) {
@@ -76,6 +79,7 @@ class ChapterCrawler {
     required String host,
     CancelToken? cancelToken,
   }) async {
+    final context = RuleContext();
     final allUrls = <String>[];
     var url = chapterUrl;
     var pageCount = 0;
@@ -102,6 +106,7 @@ class ChapterCrawler {
       final nextPageUrl = _extractor.extractNextPageUrl(
         html,
         contentRule.nextPage,
+        context: context,
       );
 
       if (nextPageUrl != null && nextPageUrl.isNotEmpty) {

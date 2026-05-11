@@ -1,6 +1,7 @@
 import 'dart:convert';
 import 'dart:typed_data';
 import 'package:dio/dio.dart';
+import 'package:gbk_codec/gbk_codec.dart' as gbk;
 import 'package:readlive/core/network/http_client.dart';
 
 class HtmlFetcher {
@@ -96,10 +97,15 @@ class HtmlFetcher {
   }
 
   String _decodeBytes(Uint8List bytes, String encoding) {
+    final enc = encoding.toLowerCase();
+    if (enc == 'gbk' || enc == 'gb2312' || enc == 'gb18030') {
+      try {
+        return gbk.gbk.decode(bytes);
+      } catch (_) {}
+    }
     try {
       return utf8.decode(bytes, allowMalformed: false);
     } catch (_) {}
-
     return latin1.decode(bytes);
   }
 }

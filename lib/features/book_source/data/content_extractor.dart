@@ -1,19 +1,24 @@
+import 'dart:convert';
+import 'package:readlive/features/book_source/data/rule_context.dart';
 import 'package:readlive/features/book_source/data/rule_parser.dart';
+import 'package:readlive/features/book_source/data/rule_handlers/jsonpath_handler.dart';
 import 'package:readlive/features/book_source/domain/search_result.dart';
 import 'package:readlive/features/book_source/domain/source_rule.dart';
 
 class ContentExtractor {
   final RuleParser _parser;
+  final JsonpathHandler _jsonpathHandler = JsonpathHandler();
 
   ContentExtractor({RuleParser? ruleParser}) : _parser = ruleParser ?? RuleParser();
 
-  /// Extract search results from HTML.
+  /// Extract search results from HTML or JSON.
   List<SearchResult> extractSearchResults(
-    String html,
+    String body,
     SearchRule rule,
     String sourceId,
-    String sourceName,
-  ) {
+    String sourceName, {
+    RuleContext? context,
+  }) {
     final tableRules = <String, String>{};
     if (rule.bookName != null) tableRules['bookName'] = rule.bookName!;
     if (rule.author != null) tableRules['author'] = rule.author!;
@@ -21,7 +26,7 @@ class ContentExtractor {
     if (rule.intro != null) tableRules['intro'] = rule.intro!;
     if (rule.bookUrl != null) tableRules['bookUrl'] = rule.bookUrl!;
 
-    final rows = _parser.extractTable(html, rule.list, tableRules);
+    final rows = _parser.extractTable(body, rule.list, tableRules, context: context);
 
     return rows.map((row) {
       return SearchResult(
@@ -37,21 +42,21 @@ class ContentExtractor {
   }
 
   /// Extract book info from a book detail page.
-  BookInfo extractBookInfo(String html, BookInfoRule rule) {
+  BookInfo extractBookInfo(String html, BookInfoRule rule, {RuleContext? context}) {
     return BookInfo(
-      cover: rule.cover != null ? _parser.extractText(html, rule.cover!) : null,
-      intro: rule.intro != null ? _parser.extractText(html, rule.intro!) : null,
-      author: rule.author != null ? _parser.extractText(html, rule.author!) : null,
+      cover: rule.cover != null ? _parser.extractText(html, rule.cover!, context: context) : null,
+      intro: rule.intro != null ? _parser.extractText(html, rule.intro!, context: context) : null,
+      author: rule.author != null ? _parser.extractText(html, rule.author!, context: context) : null,
       tocUrl: rule.tocUrl != null
-          ? _parser.resolveTemplate(rule.tocUrl!, {})
+          ? _parser.resolveTemplate(rule.tocUrl!, {}, context: context)
           : null,
     );
   }
 
   /// Extract table of contents (chapter list) from HTML.
-  List<TocEntry> extractToc(String html, TocRule rule) {
-    final names = _parser.extractList(html, rule.list, rule.name);
-    final urls = _parser.extractList(html, rule.list, rule.url);
+  List<TocEntry> extractToc(String html, TocRule rule, {RuleContext? context}) {
+    final names = _parser.extractList(html, rule.list, rule.name, context: context);
+    final urls = _parser.extractList(html, rule.list, rule.url, context: context);
 
     final entries = <TocEntry>[];
     final count = names.length < urls.length ? names.length : urls.length;
@@ -62,8 +67,8 @@ class ContentExtractor {
   }
 
   /// Extract chapter text content from HTML.
-  String extractChapterContent(String html, ContentRule rule) {
-    return _parser.extractContent(html, rule.content);
+  String extractChapterContent(String html, ContentRule rule, {RuleContext? context}) {
+    return _parser.extractContent(html, rule.content, context: context);
   }
 
   /// Extract image URLs from a manga chapter page.
@@ -75,9 +80,9 @@ class ContentExtractor {
   }
 
   /// Check if there is a next page URL.
-  String? extractNextPageUrl(String html, String? nextPageRule) {
+  String? extractNextPageUrl(String html, String? nextPageRule, {RuleContext? context}) {
     if (nextPageRule == null || nextPageRule.isEmpty) return null;
-    return _parser.extractText(html, nextPageRule);
+    return _parser.extractText(html, nextPageRule, context: context);
   }
 }
 
