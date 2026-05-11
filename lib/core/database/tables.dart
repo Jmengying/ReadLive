@@ -12,6 +12,8 @@ class BooksTable extends Table {
   TextColumn get groupId => text().nullable().references(BookGroupsTable, #id)();
   IntColumn get lastReadAt => integer().nullable()();
   RealColumn get progress => real().withDefault(const Constant(0.0))();
+  IntColumn get lastChapterIndex => integer().withDefault(const Constant(0))();
+  RealColumn get lastScrollOffset => real().withDefault(const Constant(0.0))();
   IntColumn get createdAt => integer()();
   IntColumn get updatedAt => integer()();
 
