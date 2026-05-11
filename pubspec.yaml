@@ -31,6 +31,7 @@ dependencies:
   syncfusion_flutter_pdf: ^27.1.48
   fl_chart: ^0.69.0
   xpath_selector: ^3.0.0
+  xpath_selector_html_parser: ^3.0.0
   json_path: ^0.7.6
   flutter_js: ^0.8.0
   gbk_codec: ^0.4.0
