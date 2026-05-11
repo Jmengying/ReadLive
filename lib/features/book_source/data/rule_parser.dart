@@ -1,4 +1,3 @@
-import 'dart:math';
 import 'package:beautiful_soup_dart/beautiful_soup.dart';
 
 class RuleParser {
@@ -194,8 +193,34 @@ class RuleParser {
 
   _ParsedRule _parseRule(String rule) {
     final parts = rule.split('|');
-    final selectorAttr = parts[0].trim();
+    var selectorAttr = parts[0].trim();
     final filters = parts.skip(1).map((f) => f.trim()).toList();
+
+    // Strip @css: prefix (Legado CSS selector marker)
+    if (selectorAttr.startsWith('@css:')) {
+      selectorAttr = selectorAttr.substring(5).trim();
+    }
+
+    // Handle XPath rules (convert to CSS where possible)
+    if (selectorAttr.startsWith('//') || selectorAttr.startsWith('@XPath:')) {
+      if (selectorAttr.startsWith('@XPath:')) {
+        selectorAttr = selectorAttr.substring(7).trim();
+      }
+      // Try to convert simple XPath to CSS
+      final cssSelector = _xpathToCss(selectorAttr);
+      if (cssSelector != null) {
+        selectorAttr = cssSelector;
+      } else {
+        // Return empty rule if we can't convert
+        return _ParsedRule(selector: '', attribute: 'text', filters: filters);
+      }
+    }
+
+    // Handle JSONPath rules
+    if (selectorAttr.startsWith(r'$.') || selectorAttr.startsWith('@json:')) {
+      // JSONPath not supported in HTML parsing mode
+      return _ParsedRule(selector: '', attribute: 'text', filters: filters);
+    }
 
     final atIdx = selectorAttr.lastIndexOf('@');
     String selector;
@@ -214,6 +239,63 @@ class RuleParser {
       attribute: attribute,
       filters: filters,
     );
+  }
+
+  /// Convert simple XPath expressions to CSS selectors.
+  /// Returns null if the XPath is too complex to convert.
+  String? _xpathToCss(String xpath) {
+    // Handle simple patterns like:
+    // //tag → tag
+    // //tag[@attr='value'] → tag[attr='value']
+    // //tag[@class='name'] → tag.name
+    // //*[@id='name'] → #name
+    // //tag/text() → tag (with text attribute)
+    // //tag/@href → tag (with href attribute)
+
+    var result = xpath;
+
+    // Remove leading //
+    if (result.startsWith('//')) {
+      result = result.substring(2);
+    }
+
+    // Handle //*[@id='value'] → #value
+    final idMatch = RegExp(r"""^\*\[@id=['"]([^'"]+)['"]\]$""").firstMatch(result);
+    if (idMatch != null) {
+      return '#${idMatch.group(1)}';
+    }
+
+    // Handle //*[@class='value'] → .value
+    final classMatch = RegExp(r"""^\*\[@class=['"]([^'"]+)['"]\]$""").firstMatch(result);
+    if (classMatch != null) {
+      return '.${classMatch.group(1)}';
+    }
+
+    // Handle tag[@attr='value'] → tag[attr='value']
+    result = result.replaceAllMapped(
+      RegExp(r"""[@(\w+)=['"]([^'"]+)['"]\]"""),
+      (m) => '[${m.group(1)}="${m.group(2)}"]',
+    );
+
+    // Remove /text() and /@attr suffixes (handled by attribute extraction)
+    result = result.replaceAll(RegExp(r'/text\(\)$'), '');
+    result = result.replaceAll(RegExp(r'/@\w+$'), '');
+
+    // Handle position selectors like tag[1] → tag:first-of-type
+    result = result.replaceAllMapped(
+      RegExp(r'\[(\d+)\]'),
+      (m) {
+        final pos = int.tryParse(m.group(1)!) ?? 1;
+        return ':nth-of-type($pos)';
+      },
+    );
+
+    // If it still looks like a valid CSS selector, return it
+    if (result.isNotEmpty && !result.contains('[')) {
+      return result;
+    }
+
+    return result.isNotEmpty ? result : null;
   }
 
   String _extractAttribute(Bs4Element element, String attribute) {
