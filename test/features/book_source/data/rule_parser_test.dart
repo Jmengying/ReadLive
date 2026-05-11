@@ -1,5 +1,6 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:readlive/features/book_source/data/rule_parser.dart';
+import 'package:readlive/features/book_source/data/rule_context.dart';
 
 void main() {
   final parser = RuleParser();
@@ -121,6 +122,76 @@ void main() {
       expect(result, contains('Paragraph one'));
       expect(result, contains('Paragraph two'));
       expect(result, isNot(contains('ad code')));
+    });
+  });
+
+  group('connectors', () {
+    test('&& merges values', () {
+      const html =
+          '<html><body><div class="a">Value A</div><div class="b">Value B</div></body></html>';
+      final result = parser.extractText(html, '.a@text&&.b@text');
+      expect(result, contains('Value A'));
+      expect(result, contains('Value B'));
+    });
+
+    test('|| returns first non-empty', () {
+      const html =
+          '<html><body><div class="a">Value A</div></body></html>';
+      final result = parser.extractText(html, '.missing@text||.a@text');
+      expect(result, 'Value A');
+    });
+
+    test('|| returns null when all parts empty', () {
+      const html = '<html><body><div>Hi</div></body></html>';
+      final result = parser.extractText(html, '.missing1@text||.missing2@text');
+      expect(result, isNull);
+    });
+
+    test('&& returns null when all parts empty', () {
+      const html = '<html><body><div>Hi</div></body></html>';
+      final result = parser.extractText(html, '.missing1@text&&.missing2@text');
+      expect(result, isNull);
+    });
+  });
+
+  group('variable put/get', () {
+    test('@put stores value in context', () {
+      final ctx = RuleContext();
+      const html =
+          '<html><body><div class="t">stored</div></body></html>';
+      parser.extractText(html, '.t@text@put:{key=stored}', context: ctx);
+      expect(ctx.get('key'), 'stored');
+    });
+
+    test('java.get in template', () {
+      final ctx = RuleContext();
+      ctx.put('k', 'v');
+      final result = parser.resolveTemplate(
+        "{{java.get('k')}}",
+        {},
+        context: ctx,
+      );
+      expect(result, 'v');
+    });
+
+    test('@get:key in template', () {
+      final ctx = RuleContext();
+      ctx.put('mykey', 'myval');
+      final result = parser.resolveTemplate(
+        '{{@get:mykey}}',
+        {},
+        context: ctx,
+      );
+      expect(result, 'myval');
+    });
+  });
+
+  group('regex in _parseRule', () {
+    test('AllInOne detected by : prefix', () {
+      const html =
+          '<html><body><a href="/1">A</a><a href="/2">B</a></body></html>';
+      final results = parser.extractList(html, 'html', r':href="([^"]+)"');
+      expect(results, ['/1', '/2']);
     });
   });
 }

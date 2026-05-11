@@ -1,18 +1,55 @@
 import 'package:beautiful_soup_dart/beautiful_soup.dart';
+import 'package:readlive/features/book_source/data/rule_context.dart';
+import 'package:readlive/features/book_source/data/rule_handlers/xpath_handler.dart';
+import 'package:readlive/features/book_source/data/rule_handlers/jsonpath_handler.dart';
+import 'package:readlive/features/book_source/data/rule_handlers/regex_handler.dart';
+import 'package:readlive/features/book_source/data/rule_handlers/js_handler.dart';
 
 class RuleParser {
+  final _xpathHandler = XpathHandler();
+  final _jsonpathHandler = JsonpathHandler();
+  final _regexHandler = RegexHandler();
+  final _jsHandler = JsHandler();
+
+  // ============================================================
+  // Template resolution
+  // ============================================================
+
   /// Resolve template variables like {{key}} in a string.
-  /// Handles Legado patterns: {{key}}, {{java.encodeURI(key)}}, {{(page-1)*10}}, etc.
-  String resolveTemplate(String template, Map<String, String> variables) {
+  /// Handles Legado patterns: {{key}}, {{java.encodeURI(key)}},
+  /// {{java.get('key')}}, {{@get:key}}, {{(page-1)*10}}, etc.
+  String resolveTemplate(
+    String template,
+    Map<String, String> variables, {
+    RuleContext? context,
+  }) {
     var result = template;
 
-    // Handle {{java.encodeURI(key)}} and similar
+    // Handle {{java.encodeURI(key)}}
     result = result.replaceAllMapped(
       RegExp(r'\{\{java\.encodeURI\((\w+)\)\}\}'),
       (m) => Uri.encodeComponent(variables[m.group(1)] ?? ''),
     );
 
-    // Handle {{java.put('key', value)}} - just remove these blocks
+    // Handle {{java.get('key')}} — read from context
+    result = result.replaceAllMapped(
+      RegExp(r"""\{\{java\.get\(['"](\w+)['"]\)\}\}"""),
+      (m) {
+        if (context != null) return context.get(m.group(1)!);
+        return variables[m.group(1)] ?? '';
+      },
+    );
+
+    // Handle {{@get:key}} — read from context
+    result = result.replaceAllMapped(
+      RegExp(r'\{\{@get:(\w+)\}\}'),
+      (m) {
+        if (context != null) return context.get(m.group(1)!);
+        return variables[m.group(1)] ?? '';
+      },
+    );
+
+    // Handle {{java.put('key', value)}} — remove these blocks
     result = result.replaceAll(RegExp(r"\{\{java\.put\([^)]*\)\}\}"), '');
 
     // Handle simple variable substitution
@@ -25,29 +62,28 @@ class RuleParser {
       RegExp(r'\{\{([^{}]+?)\}\}'),
       (m) {
         final expr = m.group(1)!.trim();
-        // Try to evaluate simple math with variable substitution
         try {
           var mathExpr = expr;
           for (final entry in variables.entries) {
             mathExpr = mathExpr.replaceAll(entry.key, entry.value);
           }
-          // Only evaluate if it looks like a math expression
           if (RegExp(r'^[\d\s+\-*/().]+$').hasMatch(mathExpr)) {
             return _evalMath(mathExpr).toString();
           }
         } catch (_) {}
-        return m.group(0)!; // Return original if can't evaluate
+        return m.group(0)!;
       },
     );
 
     return result;
   }
 
-  /// Simple math expression evaluator for basic arithmetic.
+  // ============================================================
+  // Math evaluation
+  // ============================================================
+
   num _evalMath(String expr) {
-    // Use Dart's expression evaluation for simple math
     expr = expr.replaceAll(' ', '');
-    // Handle basic operations: +, -, *, /
     return _parseExpr(expr, 0).$1;
   }
 
@@ -76,7 +112,7 @@ class RuleParser {
   (num, int) _parseFactor(String s, int pos) {
     if (pos < s.length && s[pos] == '(') {
       final (value, newPos) = _parseExpr(s, pos + 1);
-      return (value, newPos + 1); // skip ')'
+      return (value, newPos + 1);
     }
     var end = pos;
     while (end < s.length && (s[end].contains(RegExp(r'[\d.]')))) {
@@ -85,35 +121,98 @@ class RuleParser {
     return (num.parse(s.substring(pos, end)), end);
   }
 
+  // ============================================================
+  // Extraction methods
+  // ============================================================
+
   /// Extract a single value from HTML using a rule string.
   ///
-  /// Rule format: `css_selector@attribute|filter1|filter2`
-  String? extractText(String html, String rule) {
+  /// Supports connectors (&&, ||), CSS selectors, OnlyOne regex, and
+  /// @put context storage. Returns null for JSONPath, XPath, JS, and
+  /// AllInOne rules (use dedicated methods for those).
+  String? extractText(String html, String rule, {RuleContext? context}) {
     if (rule.isEmpty) return null;
 
+    // Handle connectors first
+    if (_hasConnector(rule)) {
+      return _handleConnectors(html, rule, context);
+    }
+
+    // Parse rule
     final parsed = _parseRule(rule);
-    final soup = BeautifulSoup(html);
-    final element = soup.find(parsed.selector);
 
-    if (element == null) return null;
+    // JS rules need async — skip for sync extractText
+    if (parsed.jsCode != null) return null;
 
-    var value = _extractAttribute(element, parsed.attribute);
+    // JSONPath rules need JSON data — skip for HTML extractText
+    if (parsed.jsonPathRule != null) return null;
 
-    for (final filter in parsed.filters) {
-      value = _applyFilter(value, filter);
+    // AllInOne regex is list-only
+    if (parsed.allInOneRegex != null) return null;
+
+    String value;
+
+    if (parsed.onlyOneRule != null) {
+      value = _regexHandler.applyOnlyOne(
+        html,
+        parsed.onlyOneRule!.regex,
+        parsed.onlyOneRule!.replacement,
+      );
+      for (final filter in parsed.filters) {
+        value = _applyFilter(value, filter);
+      }
+    } else if (parsed.purifyRule != null) {
+      value = _regexHandler.applyPurify(
+        html,
+        parsed.purifyRule!.regex,
+        parsed.purifyRule!.replacement,
+      );
+      for (final filter in parsed.filters) {
+        value = _applyFilter(value, filter);
+      }
+    } else {
+      // Default: CSS selector
+      final soup = BeautifulSoup(html);
+      final element = soup.find(parsed.selector);
+      if (element == null) return null;
+      value = _extractAttribute(element, parsed.attribute);
+      for (final filter in parsed.filters) {
+        value = _applyFilter(value, filter);
+      }
+    }
+
+    // Store in context if @put was specified
+    if (value.isNotEmpty &&
+        parsed.putKey != null &&
+        context != null) {
+      context.put(parsed.putKey!, value);
     }
 
     return value.isEmpty ? null : value;
   }
 
   /// Extract a list of values from HTML.
-  List<String> extractList(String html, String listSelector, String itemRule) {
-    if (listSelector.isEmpty || itemRule.isEmpty) return [];
+  ///
+  /// Supports AllInOne regex (prefixed with :) and CSS selectors.
+  List<String> extractList(
+    String html,
+    String listSelector,
+    String itemRule, {
+    RuleContext? context,
+  }) {
+    if (itemRule.isEmpty) return [];
 
     final parsed = _parseRule(itemRule);
+
+    // AllInOne regex — apply to full HTML
+    if (parsed.allInOneRegex != null) {
+      return _regexHandler.extractAllInOne(html, parsed.allInOneRegex!);
+    }
+
+    // Default: CSS selector
+    if (listSelector.isEmpty) return [];
     final soup = BeautifulSoup(html);
     final elements = soup.findAll(listSelector);
-
     final results = <String>[];
     for (final element in elements) {
       var value = _extractAttribute(element, parsed.attribute);
@@ -128,43 +227,64 @@ class RuleParser {
   }
 
   /// Extract full text content, removing script/style tags first.
-  String extractContent(String html, String rule) {
+  ///
+  /// Supports purify rules and CSS selectors.
+  String extractContent(String html, String rule, {RuleContext? context}) {
     if (rule.isEmpty) return '';
 
     final parsed = _parseRule(rule);
 
     var cleanHtml = html
-        .replaceAll(RegExp(r'<script[^>]*>[\s\S]*?</script>', caseSensitive: false), '')
-        .replaceAll(RegExp(r'<style[^>]*>[\s\S]*?</style>', caseSensitive: false), '');
+        .replaceAll(
+          RegExp(r'<script[^>]*>[\s\S]*?</script>', caseSensitive: false),
+          '',
+        )
+        .replaceAll(
+          RegExp(r'<style[^>]*>[\s\S]*?</style>', caseSensitive: false),
+          '',
+        );
 
+    // Purify rule
+    if (parsed.purifyRule != null) {
+      var value = _regexHandler.applyPurify(
+        cleanHtml,
+        parsed.purifyRule!.regex,
+        parsed.purifyRule!.replacement,
+      );
+      for (final filter in parsed.filters) {
+        value = _applyFilter(value, filter);
+      }
+      return value.trim();
+    }
+
+    // Default: CSS selector
     final soup = BeautifulSoup(cleanHtml);
     final element = soup.find(parsed.selector);
-
     if (element == null) return '';
-
     var value = _extractAttribute(element, parsed.attribute);
-
     for (final filter in parsed.filters) {
       value = _applyFilter(value, filter);
     }
-
     return value.trim();
   }
 
   /// Extract a list of image URLs from HTML.
-  ///
-  /// [listSelector] selects the container or image elements.
-  /// [itemRule] extracts the image src from each element.
-  List<String> extractImageList(String html, String listSelector, String itemRule) {
-    return extractList(html, listSelector, itemRule);
+  List<String> extractImageList(
+    String html,
+    String listSelector,
+    String itemRule, {
+    RuleContext? context,
+  }) {
+    return extractList(html, listSelector, itemRule, context: context);
   }
 
   /// Extract structured data from a list of elements.
   List<Map<String, String>> extractTable(
     String html,
     String listSelector,
-    Map<String, String> fieldRules,
-  ) {
+    Map<String, String> fieldRules, {
+    RuleContext? context,
+  }) {
     final soup = BeautifulSoup(html);
     final elements = soup.findAll(listSelector);
     final results = <Map<String, String>>[];
@@ -173,9 +293,8 @@ class RuleParser {
       final row = <String, String>{};
       for (final entry in fieldRules.entries) {
         final parsed = _parseRule(entry.value);
-        final child = parsed.selector.isEmpty
-            ? element
-            : element.find(parsed.selector);
+        final child =
+            parsed.selector.isEmpty ? element : element.find(parsed.selector);
         if (child != null) {
           var value = _extractAttribute(child, parsed.attribute);
           for (final filter in parsed.filters) {
@@ -191,41 +310,205 @@ class RuleParser {
     return results;
   }
 
+  // ============================================================
+  // JSON and XPath extraction
+  // ============================================================
+
+  /// Extract a single value from JSON data using a JSONPath rule.
+  String? extractFromJson(
+    dynamic jsonData,
+    String rule, {
+    RuleContext? context,
+  }) {
+    if (rule.isEmpty) return null;
+    final parsed = _parseRule(rule);
+    if (parsed.jsonPathRule != null) {
+      return _jsonpathHandler.extractText(jsonData, parsed.jsonPathRule!);
+    }
+    return null;
+  }
+
+  /// Extract a list of values from JSON data using a JSONPath rule.
+  List<String> extractListFromJson(
+    dynamic jsonData,
+    String rule, {
+    RuleContext? context,
+  }) {
+    if (rule.isEmpty) return [];
+    final parsed = _parseRule(rule);
+    if (parsed.jsonPathRule != null) {
+      return _jsonpathHandler.extractList(jsonData, parsed.jsonPathRule!);
+    }
+    return [];
+  }
+
+  /// Extract a single value from HTML using an XPath rule.
+  String? extractTextWithXpath(
+    String html,
+    String rule, {
+    RuleContext? context,
+  }) {
+    if (rule.isEmpty) return null;
+    final parsed = _parseRule(rule);
+    if (parsed.xpathRule != null) {
+      return _xpathHandler.extractText(html, parsed.xpathRule!);
+    }
+    return null;
+  }
+
+  /// Extract a list of values from HTML using an XPath rule.
+  List<String> extractListWithXpath(
+    String html,
+    String rule, {
+    RuleContext? context,
+  }) {
+    if (rule.isEmpty) return [];
+    final parsed = _parseRule(rule);
+    if (parsed.xpathRule != null) {
+      return _xpathHandler.extractList(html, parsed.xpathRule!);
+    }
+    return [];
+  }
+
+  // ============================================================
+  // Connectors
+  // ============================================================
+
+  bool _hasConnector(String rule) {
+    return rule.contains('||') || rule.contains('&&');
+  }
+
+  /// Handle && (merge values) and || (first non-empty) connectors.
+  String? _handleConnectors(String html, String rule, RuleContext? context) {
+    // || has lower precedence — check first
+    if (rule.contains('||')) {
+      final parts = rule.split('||');
+      for (final part in parts) {
+        final result = extractText(html, part.trim(), context: context);
+        if (result != null && result.isNotEmpty) return result;
+      }
+      return null;
+    }
+
+    // && merges values
+    if (rule.contains('&&')) {
+      final parts = rule.split('&&');
+      final results = <String>[];
+      for (final part in parts) {
+        final result = extractText(html, part.trim(), context: context);
+        if (result != null && result.isNotEmpty) results.add(result);
+      }
+      if (results.isEmpty) return null;
+      return results.join('\n');
+    }
+
+    return null;
+  }
+
+  // ============================================================
+  // Rule parsing
+  // ============================================================
+
   _ParsedRule _parseRule(String rule) {
-    final parts = rule.split('|');
+    var workingRule = rule.trim();
+
+    // 1. Extract @put:{key=value} from end
+    String? putKey;
+    final putMatch = RegExp(r'@put:\{([^}]+)\}$').firstMatch(workingRule);
+    if (putMatch != null) {
+      final putContent = putMatch.group(1)!;
+      final eqIdx = putContent.indexOf('=');
+      if (eqIdx >= 0) {
+        putKey = putContent.substring(0, eqIdx).trim();
+      }
+      workingRule = workingRule.substring(0, putMatch.start).trim();
+    }
+
+    // 2. Check for ## rules (purify / OnlyOne)
+    if (workingRule.startsWith('##')) {
+      // OnlyOne: ##regex##replacement###
+      if (RegexHandler.isOnlyOne(workingRule)) {
+        final onlyOne = RegexHandler.parseOnlyOneRule(workingRule);
+        return _ParsedRule(
+          selector: '',
+          attribute: 'text',
+          filters: [],
+          onlyOneRule: onlyOne,
+          putKey: putKey,
+        );
+      }
+      // Purify: ##regex##replacement (no trailing ###)
+      if (RegexHandler.isPurify(workingRule)) {
+        final purify = RegexHandler.parsePurifyRule(workingRule);
+        return _ParsedRule(
+          selector: '',
+          attribute: 'text',
+          filters: [],
+          purifyRule: purify,
+          putKey: putKey,
+        );
+      }
+    }
+
+    // 3. Check JS rule
+    if (JsHandler.isJsRule(workingRule)) {
+      final jsCode = JsHandler.extractJsCode(workingRule);
+      return _ParsedRule(
+        selector: '',
+        attribute: 'text',
+        filters: [],
+        jsCode: jsCode,
+        putKey: putKey,
+      );
+    }
+
+    // 4. Split by | for filters
+    final parts = workingRule.split('|');
     var selectorAttr = parts[0].trim();
     final filters = parts.skip(1).map((f) => f.trim()).toList();
 
-    // Strip @css: prefix (Legado CSS selector marker)
+    // 5. Strip @css: prefix
     if (selectorAttr.startsWith('@css:')) {
       selectorAttr = selectorAttr.substring(5).trim();
     }
 
-    // Handle XPath rules (convert to CSS where possible)
-    if (selectorAttr.startsWith('//') || selectorAttr.startsWith('@XPath:')) {
-      if (selectorAttr.startsWith('@XPath:')) {
-        selectorAttr = selectorAttr.substring(7).trim();
-      }
-      // Try to convert simple XPath to CSS
-      final cssSelector = _xpathToCss(selectorAttr);
-      if (cssSelector != null) {
-        selectorAttr = cssSelector;
-      } else {
-        // Return empty rule if we can't convert
-        return _ParsedRule(selector: '', attribute: 'text', filters: filters);
-      }
-    }
-
-    // Handle JSONPath rules
+    // 6. Check JSONPath (@json: or $.)
     if (selectorAttr.startsWith(r'$.') || selectorAttr.startsWith('@json:')) {
-      // JSONPath not supported in HTML parsing mode
-      return _ParsedRule(selector: '', attribute: 'text', filters: filters);
+      return _ParsedRule(
+        selector: '',
+        attribute: 'text',
+        filters: filters,
+        jsonPathRule: selectorAttr,
+        putKey: putKey,
+      );
     }
 
+    // 7. Check XPath (// or @XPath:)
+    if (selectorAttr.startsWith('//') || selectorAttr.startsWith('@XPath:')) {
+      return _ParsedRule(
+        selector: '',
+        attribute: 'text',
+        filters: filters,
+        xpathRule: selectorAttr,
+        putKey: putKey,
+      );
+    }
+
+    // 8. Check AllInOne (: prefix)
+    if (selectorAttr.startsWith(':')) {
+      return _ParsedRule(
+        selector: '',
+        attribute: 'text',
+        filters: filters,
+        allInOneRegex: selectorAttr.substring(1),
+        putKey: putKey,
+      );
+    }
+
+    // 9. Default: CSS selector
     final atIdx = selectorAttr.lastIndexOf('@');
     String selector;
     String attribute;
-
     if (atIdx >= 0) {
       selector = selectorAttr.substring(0, atIdx).trim();
       attribute = selectorAttr.substring(atIdx + 1).trim();
@@ -238,65 +521,13 @@ class RuleParser {
       selector: selector,
       attribute: attribute,
       filters: filters,
+      putKey: putKey,
     );
   }
 
-  /// Convert simple XPath expressions to CSS selectors.
-  /// Returns null if the XPath is too complex to convert.
-  String? _xpathToCss(String xpath) {
-    // Handle simple patterns like:
-    // //tag → tag
-    // //tag[@attr='value'] → tag[attr='value']
-    // //tag[@class='name'] → tag.name
-    // //*[@id='name'] → #name
-    // //tag/text() → tag (with text attribute)
-    // //tag/@href → tag (with href attribute)
-
-    var result = xpath;
-
-    // Remove leading //
-    if (result.startsWith('//')) {
-      result = result.substring(2);
-    }
-
-    // Handle //*[@id='value'] → #value
-    final idMatch = RegExp(r"""^\*\[@id=['"]([^'"]+)['"]\]$""").firstMatch(result);
-    if (idMatch != null) {
-      return '#${idMatch.group(1)}';
-    }
-
-    // Handle //*[@class='value'] → .value
-    final classMatch = RegExp(r"""^\*\[@class=['"]([^'"]+)['"]\]$""").firstMatch(result);
-    if (classMatch != null) {
-      return '.${classMatch.group(1)}';
-    }
-
-    // Handle tag[@attr='value'] → tag[attr='value']
-    result = result.replaceAllMapped(
-      RegExp(r"""[@(\w+)=['"]([^'"]+)['"]\]"""),
-      (m) => '[${m.group(1)}="${m.group(2)}"]',
-    );
-
-    // Remove /text() and /@attr suffixes (handled by attribute extraction)
-    result = result.replaceAll(RegExp(r'/text\(\)$'), '');
-    result = result.replaceAll(RegExp(r'/@\w+$'), '');
-
-    // Handle position selectors like tag[1] → tag:first-of-type
-    result = result.replaceAllMapped(
-      RegExp(r'\[(\d+)\]'),
-      (m) {
-        final pos = int.tryParse(m.group(1)!) ?? 1;
-        return ':nth-of-type($pos)';
-      },
-    );
-
-    // If it still looks like a valid CSS selector, return it
-    if (result.isNotEmpty && !result.contains('[')) {
-      return result;
-    }
-
-    return result.isNotEmpty ? result : null;
-  }
+  // ============================================================
+  // Helpers
+  // ============================================================
 
   String _extractAttribute(Bs4Element element, String attribute) {
     switch (attribute) {
@@ -314,11 +545,26 @@ class RuleParser {
   }
 
   String _applyFilter(String value, String filter) {
+    // Check for purify pattern in filter (##regex##replacement)
+    if (RegexHandler.isPurify(filter)) {
+      final purify = RegexHandler.parsePurifyRule(filter);
+      if (purify != null) {
+        return _regexHandler.applyPurify(
+          value,
+          purify.regex,
+          purify.replacement,
+        );
+      }
+    }
+
     if (filter == 'trim') {
       return value.trim();
     } else if (filter == 'removeAd') {
       return value
-          .replaceAll(RegExp(r'(广告|推荐|百度搜索|喜欢.*?推荐|最新章节|手机阅读)'), '')
+          .replaceAll(
+            RegExp(r'(广告|推荐|百度搜索|喜欢.*?推荐|最新章节|手机阅读)'),
+            '',
+          )
           .trim();
     } else if (filter.startsWith('replace(') && filter.endsWith(')')) {
       final args = filter.substring(8, filter.length - 1);
@@ -337,10 +583,24 @@ class _ParsedRule {
   final String selector;
   final String attribute;
   final List<String> filters;
+  final String? jsonPathRule;
+  final String? xpathRule;
+  final String? allInOneRegex;
+  final ({String regex, String replacement})? onlyOneRule;
+  final ({String regex, String replacement})? purifyRule;
+  final String? jsCode;
+  final String? putKey;
 
   const _ParsedRule({
     required this.selector,
     required this.attribute,
     required this.filters,
+    this.jsonPathRule,
+    this.xpathRule,
+    this.allInOneRegex,
+    this.onlyOneRule,
+    this.purifyRule,
+    this.jsCode,
+    this.putKey,
   });
 }
