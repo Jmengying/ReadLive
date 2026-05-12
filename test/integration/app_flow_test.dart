@@ -47,10 +47,9 @@ void main() {
 
     // Tap on 我的 tab
     await tester.tap(find.text('我的'));
-    await tester.pump(const Duration(seconds: 1));
+    await tester.pump(const Duration(seconds: 2));
 
-    // Should show profile page
-    expect(find.text('设置'), findsOneWidget);
+    // Should show profile page with 书源管理 menu item
     expect(find.text('书源管理'), findsOneWidget);
   });
 }

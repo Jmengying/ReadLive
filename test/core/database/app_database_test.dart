@@ -19,8 +19,8 @@ void main() {
     expect(books, isEmpty);
   });
 
-  test('schema version is 2', () {
-    expect(db.schemaVersion, 2);
+  test('schema version is 7', () {
+    expect(db.schemaVersion, 7);
   });
 
   test('BookSourcesTable CRUD', () async {
