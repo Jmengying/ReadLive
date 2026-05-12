@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'package:json_path/json_path.dart';
 import 'package:readlive/features/book_source/data/rule_context.dart';
 import 'package:readlive/features/book_source/data/rule_parser.dart';
 import 'package:readlive/features/book_source/data/rule_handlers/jsonpath_handler.dart';
@@ -12,6 +13,9 @@ class ContentExtractor {
   ContentExtractor({RuleParser? ruleParser}) : _parser = ruleParser ?? RuleParser();
 
   /// Extract search results from HTML or JSON.
+  ///
+  /// Automatically detects JSON responses (body starting with `{` or `[`)
+  /// and uses JSONPath extraction. Falls back to HTML/CSS parsing otherwise.
   List<SearchResult> extractSearchResults(
     String body,
     SearchRule rule,
@@ -19,6 +23,18 @@ class ContentExtractor {
     String sourceName, {
     RuleContext? context,
   }) {
+    // Try JSON detection first
+    final trimmed = body.trim();
+    if (trimmed.startsWith('{') || trimmed.startsWith('[')) {
+      try {
+        final jsonData = jsonDecode(trimmed);
+        return _extractSearchResultsFromJson(jsonData, rule, sourceId, sourceName);
+      } catch (_) {
+        // Not valid JSON, fall through to HTML parsing
+      }
+    }
+
+    // HTML/CSS extraction path
     final tableRules = <String, String>{};
     if (rule.bookName != null) tableRules['bookName'] = rule.bookName!;
     if (rule.author != null) tableRules['author'] = rule.author!;
@@ -39,6 +55,65 @@ class ContentExtractor {
         sourceName: sourceName,
       );
     }).where((r) => r.bookName.isNotEmpty && r.bookUrl.isNotEmpty).toList();
+  }
+
+  /// Extract search results from parsed JSON using JSONPath rules.
+  List<SearchResult> _extractSearchResultsFromJson(
+    dynamic jsonData,
+    SearchRule rule,
+    String sourceId,
+    String sourceName,
+  ) {
+    // Strip @json: prefix from list rule if present
+    final listPath = rule.list.startsWith('@json:')
+        ? rule.list.substring(6).trim()
+        : rule.list;
+
+    // Get the array of items using JSONPath
+    final List<dynamic> items;
+    try {
+      final matches = JsonPath(listPath).read(jsonData);
+      items = matches.map((m) => m.value).toList();
+    } catch (_) {
+      return [];
+    }
+
+    final results = <SearchResult>[];
+    for (final item in items) {
+      if (item is! Map) continue;
+
+      final bookName = _extractJsonField(item, rule.bookName);
+      final bookUrl = _extractJsonField(item, rule.bookUrl);
+
+      if (bookName.isEmpty || bookUrl.isEmpty) continue;
+
+      results.add(SearchResult(
+        bookName: bookName,
+        author: _extractJsonField(item, rule.author),
+        cover: _extractJsonField(item, rule.cover),
+        intro: _extractJsonField(item, rule.intro),
+        bookUrl: bookUrl,
+        sourceId: sourceId,
+        sourceName: sourceName,
+      ));
+    }
+    return results;
+  }
+
+  /// Extract a single field value from a JSON object using a JSONPath rule.
+  String _extractJsonField(dynamic item, String? rule) {
+    if (rule == null || rule.isEmpty) return '';
+    final path = rule.startsWith('@json:')
+        ? rule.substring(6).trim()
+        : rule;
+    try {
+      final matches = JsonPath(path).read(item);
+      if (matches.isEmpty) return '';
+      final value = matches.first.value;
+      return value?.toString() ?? '';
+    } catch (_) {
+      return '';
+    }
   }
 
   /// Extract book info from a book detail page.

@@ -42,6 +42,33 @@ void main() {
     });
   });
 
+  group('extractSearchResults from JSON', () {
+    test('extracts search results from JSON API response', () {
+      const jsonBody = '''
+      {
+        "data": [
+          {"name": "斗破苍穹", "author": "天蚕土豆", "url": "/book/1"},
+          {"name": "武动乾坤", "author": "天蚕土豆", "url": "/book/2"}
+        ]
+      }
+      ''';
+
+      final rule = SearchRule(
+        url: 'https://example.com/api/search',
+        list: r'$.data[*]',
+        bookName: r'$.name',
+        author: r'$.author',
+        bookUrl: r'$.url',
+      );
+
+      final results = extractor.extractSearchResults(jsonBody, rule, 'src-1', 'API Source');
+      expect(results.length, 2);
+      expect(results[0].bookName, '斗破苍穹');
+      expect(results[0].author, '天蚕土豆');
+      expect(results[0].bookUrl, '/book/1');
+    });
+  });
+
   group('extractToc', () {
     test('extracts chapter list', () {
       const html = '''
