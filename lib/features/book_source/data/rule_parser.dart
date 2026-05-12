@@ -54,7 +54,12 @@ class RuleParser {
 
     // Handle simple variable substitution
     for (final entry in variables.entries) {
-      result = result.replaceAll('{{${entry.key}}}', entry.value);
+      var value = entry.value;
+      // key variable is auto URL-encoded (search keywords must be encoded in URLs)
+      if (entry.key == 'key') {
+        value = Uri.encodeComponent(value);
+      }
+      result = result.replaceAll('{{${entry.key}}}', value);
     }
 
     // Handle simple math expressions like {{(page - 1) * 10}}

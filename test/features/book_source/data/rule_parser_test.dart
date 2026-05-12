@@ -26,6 +26,30 @@ void main() {
       final result = parser.resolveTemplate('{{key}}-{{missing}}', {'key': 'a'});
       expect(result, 'a-{{missing}}');
     });
+
+    test('URL-encodes {{key}} variable', () {
+      final result = parser.resolveTemplate(
+        'https://example.com/search?q={{key}}',
+        {'key': '斗破苍穹'},
+      );
+      expect(result, 'https://example.com/search?q=%E6%96%97%E7%A0%B4%E8%8B%8D%E7%A9%B9');
+    });
+
+    test('URL-encodes key with spaces and special chars', () {
+      final result = parser.resolveTemplate(
+        'https://example.com/search?q={{key}}',
+        {'key': 'hello world & more'},
+      );
+      expect(result, 'https://example.com/search?q=hello%20world%20%26%20more');
+    });
+
+    test('does not double-encode java.encodeURI(key)', () {
+      final result = parser.resolveTemplate(
+        'https://example.com/search?q={{java.encodeURI(key)}}',
+        {'key': 'test'},
+      );
+      expect(result, 'https://example.com/search?q=test');
+    });
   });
 
   group('extractText', () {
