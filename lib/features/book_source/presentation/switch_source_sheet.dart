@@ -1,3 +1,4 @@
+import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:readlive/core/network/url_utils.dart';
@@ -27,11 +28,18 @@ class _SwitchSourceSheetState extends ConsumerState<SwitchSourceSheet> {
   bool _isLoading = true;
   String? _error;
   bool _isSwitching = false;
+  CancelToken? _cancelToken;
 
   @override
   void initState() {
     super.initState();
     _search();
+  }
+
+  @override
+  void dispose() {
+    _cancelToken?.cancel();
+    super.dispose();
   }
 
   Future<void> _search() async {
@@ -43,43 +51,52 @@ class _SwitchSourceSheetState extends ConsumerState<SwitchSourceSheet> {
     try {
       final repo = ref.read(bookSourceRepositoryProvider);
       final sources = await repo.getEnabledSources();
-      final fetcher = ref.read(htmlFetcherProvider);
-      final extractor = ref.read(contentExtractorProvider);
-      final parser = ref.read(ruleParserProvider);
+      final service = ref.read(searchServiceProvider);
 
       final allResults = <SearchResult>[];
-      for (final source in sources) {
-        if (source.id == widget.currentSourceId) continue;
+      _cancelToken = CancelToken();
+
+      // Search sources in parallel (excluding current source)
+      final sourcesToSearch = sources
+          .where((s) =>
+              s.id != widget.currentSourceId && s.parseRule().search != null)
+          .toList();
+
+      final futures = sourcesToSearch.map((source) async {
         try {
-          final rule = source.parseRule();
-          if (rule.search == null) continue;
-          final url = parser.resolveTemplate(
-            rule.search!.url,
-            {'key': widget.bookTitle, 'page': '1'},
-          );
-          final html = await fetcher.fetch(resolveUrl(source.host, url));
-          final results = extractor.extractSearchResults(
-            html, rule.search!, source.id, source.name,
+          final results = await service.searchSource(
+            source: source,
+            keyword: widget.bookTitle,
+            cancelToken: _cancelToken,
           );
           // Filter to results that roughly match the book title
           final matching = results.where((r) =>
               r.bookName.contains(widget.bookTitle) ||
               widget.bookTitle.contains(r.bookName));
-          allResults.addAll(matching.isNotEmpty ? matching : results.take(1));
+          return matching.isNotEmpty ? matching.toList() : results.take(1).toList();
         } catch (_) {
-          // Skip failed sources
+          return <SearchResult>[];
         }
+      });
+
+      final resultLists = await Future.wait(futures);
+      for (final list in resultLists) {
+        allResults.addAll(list);
       }
 
-      setState(() {
-        _results = allResults;
-        _isLoading = false;
-      });
+      if (mounted) {
+        setState(() {
+          _results = allResults;
+          _isLoading = false;
+        });
+      }
     } catch (e) {
-      setState(() {
-        _error = '搜索失败: $e';
-        _isLoading = false;
-      });
+      if (mounted) {
+        setState(() {
+          _error = '搜索失败: $e';
+          _isLoading = false;
+        });
+      }
     }
   }
 
