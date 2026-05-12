@@ -1,11 +1,13 @@
+import 'package:dio/dio.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:readlive/core/network/url_utils.dart';
 import 'package:readlive/features/bookshelf/presentation/bookshelf_provider.dart';
 import 'package:readlive/features/book_source/data/book_source_repository.dart';
 import 'package:readlive/features/book_source/data/chapter_crawler.dart';
 import 'package:readlive/features/book_source/data/content_extractor.dart';
 import 'package:readlive/features/book_source/data/html_fetcher.dart';
+import 'package:readlive/features/book_source/data/rule_context.dart';
 import 'package:readlive/features/book_source/data/rule_parser.dart';
+import 'package:readlive/features/book_source/data/search_service.dart';
 import 'package:readlive/features/book_source/data/source_tester.dart';
 import 'package:readlive/features/book_source/domain/book_source_entity.dart';
 import 'package:readlive/features/book_source/domain/search_result.dart';
@@ -50,28 +52,41 @@ final enabledSourcesProvider = FutureProvider<List<BookSourceEntity>>((ref) {
   return repo.getEnabledSources();
 });
 
+// Search service
+final searchServiceProvider = Provider<SearchService>((ref) {
+  return SearchService(
+    fetcher: ref.watch(htmlFetcherProvider),
+    extractor: ref.watch(contentExtractorProvider),
+    parser: ref.watch(ruleParserProvider),
+  );
+});
+
 // Search state
-class SearchState {
-  final String query;
+
+/// Per-source search state for tracking individual source results.
+class SourceSearchState {
+  final String sourceId;
+  final String sourceName;
   final List<SearchResult> results;
   final bool isLoading;
   final String? error;
 
-  const SearchState({
-    this.query = '',
+  const SourceSearchState({
+    required this.sourceId,
+    required this.sourceName,
     this.results = const [],
-    this.isLoading = false,
+    this.isLoading = true,
     this.error,
   });
 
-  SearchState copyWith({
-    String? query,
+  SourceSearchState copyWith({
     List<SearchResult>? results,
     bool? isLoading,
     String? error,
   }) {
-    return SearchState(
-      query: query ?? this.query,
+    return SourceSearchState(
+      sourceId: sourceId,
+      sourceName: sourceName,
       results: results ?? this.results,
       isLoading: isLoading ?? this.isLoading,
       error: error,
@@ -79,83 +94,140 @@ class SearchState {
   }
 }
 
+/// Overall search state aggregating per-source states.
+class SearchState {
+  final String query;
+  final List<SourceSearchState> sourceStates;
+  final bool isLoading;
+
+  const SearchState({
+    this.query = '',
+    this.sourceStates = const [],
+    this.isLoading = false,
+  });
+
+  List<SearchResult> get results =>
+      sourceStates.expand((s) => s.results).toList();
+
+  int get loadingCount =>
+      sourceStates.where((s) => s.isLoading).length;
+
+  int get completedCount =>
+      sourceStates.where((s) => !s.isLoading).length;
+
+  int get totalResultCount =>
+      sourceStates.fold(0, (sum, s) => sum + s.results.length);
+}
+
 class SearchNotifier extends StateNotifier<SearchState> {
   final BookSourceRepository _repo;
-  final HtmlFetcher _fetcher;
-  final ContentExtractor _extractor;
-  final RuleParser _parser;
+  final SearchService _service;
+  CancelToken? _cancelToken;
 
-  SearchNotifier(this._repo, this._fetcher, this._extractor, this._parser)
-      : super(const SearchState());
+  SearchNotifier(this._repo, this._service) : super(const SearchState());
 
   Future<void> search(String query) async {
     if (query.trim().isEmpty) return;
 
-    state = state.copyWith(query: query, isLoading: true, error: null, results: []);
+    _cancelToken?.cancel();
+    _cancelToken = CancelToken();
+    final cancelToken = _cancelToken!;
 
-    try {
-      final sources = await _repo.getEnabledSources();
+    final sources = await _repo.getEnabledSources();
+    final sourcesWithSearch =
+        sources.where((s) => s.parseRule().search != null).toList();
 
-      for (final source in sources) {
-        try {
-          final rule = source.parseRule();
-          if (rule.search == null) continue;
+    state = SearchState(
+      query: query,
+      isLoading: true,
+      sourceStates: sourcesWithSearch
+          .map((s) => SourceSearchState(
+                sourceId: s.id,
+                sourceName: s.name,
+              ))
+          .toList(),
+    );
 
-          final rawUrl = _parser.resolveTemplate(
-            rule.search!.url,
-            {'key': query, 'page': '1'},
-          );
+    final futures = sourcesWithSearch
+        .map((source) => _searchOneSource(source, query, cancelToken));
 
-          // Handle @post: prefix (Legado format)
-          final String html;
-          if (rawUrl.startsWith('@post:')) {
-            final postBody = rawUrl.substring(6);
-            final parts = postBody.split(',');
-            final postUrl = resolveUrl(source.host, parts.first.trim());
-            final postData = parts.length > 1 ? parts.sublist(1).join(',').trim() : null;
-            html = await _fetcher.post(postUrl, data: postData);
-          } else {
-            final url = resolveUrl(source.host, rawUrl);
-            html = await _fetcher.fetch(url);
-          }
+    await Future.wait(futures, eagerError: false);
 
-          final results = _extractor.extractSearchResults(
-            html,
-            rule.search!,
-            source.id,
-            source.name,
-          );
-
-          // Update state incrementally - show results as they come in
-          if (results.isNotEmpty) {
-            state = state.copyWith(
-              results: [...state.results, ...results],
-            );
-          }
-        } catch (_) {
-          // Skip failed sources, continue with others
-        }
-      }
-
-      state = state.copyWith(isLoading: false);
-    } catch (e) {
-      state = state.copyWith(
+    if (!cancelToken.isCancelled) {
+      state = SearchState(
+        query: state.query,
+        sourceStates: state.sourceStates,
         isLoading: false,
-        error: '搜索失败: $e',
       );
     }
   }
 
+  Future<void> _searchOneSource(
+    BookSourceEntity source,
+    String keyword,
+    CancelToken cancelToken,
+  ) async {
+    try {
+      final context = RuleContext();
+      final results = await _service.searchSource(
+        source: source,
+        keyword: keyword,
+        context: context,
+        cancelToken: cancelToken,
+      );
+
+      _updateSourceState(source.id, (s) => s.copyWith(
+            results: results,
+            isLoading: false,
+          ));
+    } catch (e) {
+      if (e is DioException && e.type == DioExceptionType.cancel) return;
+      _updateSourceState(source.id, (s) => s.copyWith(
+            isLoading: false,
+            error: e.toString(),
+          ));
+    }
+  }
+
+  void _updateSourceState(
+    String sourceId,
+    SourceSearchState Function(SourceSearchState) updater,
+  ) {
+    final updated = state.sourceStates.map((s) {
+      if (s.sourceId == sourceId) return updater(s);
+      return s;
+    }).toList();
+
+    state = SearchState(
+      query: state.query,
+      sourceStates: updated,
+      isLoading: state.isLoading,
+    );
+  }
+
+  void cancel() {
+    _cancelToken?.cancel();
+    state = SearchState(
+      query: state.query,
+      sourceStates: state.sourceStates
+          .map((s) => s.isLoading
+              ? s.copyWith(isLoading: false, error: '已取消')
+              : s)
+          .toList(),
+      isLoading: false,
+    );
+  }
+
   void clear() {
+    _cancelToken?.cancel();
     state = const SearchState();
   }
 }
 
-final searchProvider = StateNotifierProvider<SearchNotifier, SearchState>((ref) {
+final searchProvider =
+    StateNotifierProvider<SearchNotifier, SearchState>((ref) {
   return SearchNotifier(
     ref.watch(bookSourceRepositoryProvider),
-    ref.watch(htmlFetcherProvider),
-    ref.watch(contentExtractorProvider),
-    ref.watch(ruleParserProvider),
+    ref.watch(searchServiceProvider),
   );
 });
