@@ -76,6 +76,7 @@ class SourceRule {
         if (ruleSearch?['intro'] != null) 'intro': ruleSearch!['intro'],
         if (ruleSearch?['bookUrl'] != null) 'bookUrl': ruleSearch!['bookUrl'],
         if (ruleSearch?['nextPageUrl'] != null) 'nextPage': ruleSearch!['nextPageUrl'],
+        if (ruleSearch?['header'] != null) 'headers': ruleSearch!['header'],
       };
     }
 
@@ -152,6 +153,7 @@ class SearchRule {
   final String? intro;
   final String? bookUrl;
   final String? nextPage;
+  final String? headers;
 
   const SearchRule({
     required this.url,
@@ -162,6 +164,7 @@ class SearchRule {
     this.intro,
     this.bookUrl,
     this.nextPage,
+    this.headers,
   });
 
   factory SearchRule.fromJson(Map<String, dynamic> json) {
@@ -174,6 +177,7 @@ class SearchRule {
       intro: json['intro'] as String?,
       bookUrl: json['bookUrl'] as String?,
       nextPage: json['nextPage'] as String?,
+      headers: json['headers'] as String?,
     );
   }
 
@@ -187,6 +191,7 @@ class SearchRule {
       if (intro != null) 'intro': intro,
       if (bookUrl != null) 'bookUrl': bookUrl,
       if (nextPage != null) 'nextPage': nextPage,
+      if (headers != null) 'headers': headers,
     };
   }
 }
