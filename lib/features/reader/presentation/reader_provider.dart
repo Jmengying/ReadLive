@@ -164,14 +164,25 @@ final chapterContentProvider = FutureProvider.family<String, ({
 
   // Need to fetch from source
   final book = await ref.watch(currentBookProvider(params.bookId).future);
-  if (book == null || book.sourceId == null) return '';
+  if (book == null || book.sourceId == null) {
+    debugPrint('ChapterContent: book or sourceId is null');
+    return '';
+  }
 
   final sourceRepo = ref.watch(bookSourceRepositoryProvider);
   final source = await sourceRepo.getSourceById(book.sourceId!);
-  if (source == null) return '';
+  if (source == null) {
+    debugPrint('ChapterContent: source not found for id=${book.sourceId}');
+    return '';
+  }
 
   final rule = source.parseRule();
-  if (rule.content == null) return '';
+  if (rule.content == null) {
+    debugPrint('ChapterContent: rule.content is null');
+    return '';
+  }
+
+  debugPrint('ChapterContent: fetching chapter.url=${chapter.url}, host=${source.host}, content=${rule.content!.content}');
 
   final crawler = ref.watch(chapterCrawlerProvider);
   final String content;
@@ -189,6 +200,8 @@ final chapterContentProvider = FutureProvider.family<String, ({
       host: source.host,
     );
   }
+
+  debugPrint('ChapterContent: result length=${content.length}');
 
   if (content.isNotEmpty) {
     // Cache to database

@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -57,11 +58,15 @@ class _BookDetailPageState extends ConsumerState<BookDetailPage> {
       final parser = ref.read(ruleParserProvider);
 
       _resolvedBookUrl = resolveUrl(source.host, widget.bookUrl);
+      debugPrint('BookDetail: bookUrl=${widget.bookUrl}, resolved=$_resolvedBookUrl');
+      debugPrint('BookDetail: source.host=${source.host}');
+      debugPrint('BookDetail: rule.toc=${rule.toc != null}, toc.list=${rule.toc?.list}');
 
       final bookHtml = await fetcher.fetch(_resolvedBookUrl!);
+      debugPrint('BookDetail: bookHtml=${bookHtml.length} bytes');
 
       if (rule.bookInfo != null) {
-        _bookInfo = extractor.extractBookInfo(bookHtml, rule.bookInfo!);
+        _bookInfo = await extractor.extractBookInfo(bookHtml, rule.bookInfo!, baseUrl: source.host);
       }
 
       String tocUrl;
@@ -71,17 +76,24 @@ class _BookDetailPageState extends ConsumerState<BookDetailPage> {
       } else {
         tocUrl = _resolvedBookUrl!;
       }
+      debugPrint('BookDetail: tocUrl=$tocUrl');
 
       final tocHtml = await fetcher.fetch(tocUrl);
+      debugPrint('BookDetail: tocHtml=${tocHtml.length} bytes');
 
       if (rule.toc != null) {
-        _chapters = extractor.extractToc(tocHtml, rule.toc!);
+        _chapters = await extractor.extractToc(tocHtml, rule.toc!, baseUrl: source.host);
+        debugPrint('BookDetail: chapters=${_chapters.length}');
+      } else {
+        debugPrint('BookDetail: rule.toc is NULL');
       }
 
       setState(() {
         _isLoading = false;
       });
-    } catch (e) {
+    } catch (e, stackTrace) {
+      debugPrint('BookDetail ERROR: $e');
+      debugPrint('BookDetail STACK: $stackTrace');
       setState(() {
         _error = '加载失败: $e';
         _isLoading = false;

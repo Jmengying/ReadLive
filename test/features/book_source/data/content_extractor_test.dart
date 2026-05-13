@@ -7,7 +7,7 @@ void main() {
   final extractor = ContentExtractor(ruleParser: RuleParser());
 
   group('extractSearchResults', () {
-    test('extracts search result list', () {
+    test('extracts search result list', () async {
       const html = '''
         <html><body>
           <div class="result-item">
@@ -33,7 +33,7 @@ void main() {
         bookUrl: '.title@href',
       );
 
-      final results = extractor.extractSearchResults(html, rule, 'src-1', 'Test Source');
+      final results = await extractor.extractSearchResults(html, rule, 'src-1', 'Test Source');
       expect(results.length, 2);
       expect(results[0].bookName, 'Novel One');
       expect(results[0].author, 'Author A');
@@ -43,7 +43,7 @@ void main() {
   });
 
   group('extractSearchResults from JSON', () {
-    test('extracts search results from JSON API response', () {
+    test('extracts search results from JSON API response', () async {
       const jsonBody = '''
       {
         "data": [
@@ -61,7 +61,7 @@ void main() {
         bookUrl: r'$.url',
       );
 
-      final results = extractor.extractSearchResults(jsonBody, rule, 'src-1', 'API Source');
+      final results = await extractor.extractSearchResults(jsonBody, rule, 'src-1', 'API Source');
       expect(results.length, 2);
       expect(results[0].bookName, '斗破苍穹');
       expect(results[0].author, '天蚕土豆');
@@ -70,7 +70,7 @@ void main() {
   });
 
   group('extractToc', () {
-    test('extracts chapter list', () {
+    test('extracts chapter list', () async {
       const html = '''
         <html><body>
           <ul class="chapter-list">
@@ -87,7 +87,7 @@ void main() {
         url: '@href',
       );
 
-      final chapters = extractor.extractToc(html, rule);
+      final chapters = await extractor.extractToc(html, rule);
       expect(chapters.length, 3);
       expect(chapters[0].title, 'Chapter 1');
       expect(chapters[0].url, '/ch/1');
@@ -96,7 +96,7 @@ void main() {
   });
 
   group('extractContent', () {
-    test('extracts chapter text', () {
+    test('extracts chapter text', () async {
       const html = '''
         <html><body>
           <div class="content">
@@ -111,7 +111,7 @@ void main() {
         content: '.content@text|trim|removeAd',
       );
 
-      final text = extractor.extractChapterContent(html, rule);
+      final text = await extractor.extractChapterContent(html, rule);
       expect(text, contains('First paragraph'));
       expect(text, contains('Second paragraph'));
       expect(text, isNot(contains('广告')));

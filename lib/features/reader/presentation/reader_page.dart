@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -500,7 +501,11 @@ class _ReaderPageState extends ConsumerState<ReaderPage> {
                       onTapUp: (details) => _handleMangaTap(
                           details, screenSize, notifier),
                       onDoubleTap: () {
-                        if (readerState.isLocked) notifier.toggleLock();
+                        if (readerState.isLocked) {
+                          notifier.toggleLock();
+                        } else {
+                          notifier.toggleToolbar();
+                        }
                       },
                       child: Stack(
                         children: [
@@ -652,6 +657,8 @@ class _ReaderPageState extends ConsumerState<ReaderPage> {
                     onDoubleTap: () {
                       if (readerState.isLocked) {
                         notifier.toggleLock();
+                      } else {
+                        notifier.toggleToolbar();
                       }
                     },
                     onHorizontalDragEnd: (details) {

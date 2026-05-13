@@ -29,7 +29,7 @@ class ChapterCrawler {
   }) async {
     final context = RuleContext();
     final parts = <String>[];
-    var url = chapterUrl;
+    var url = resolveUrl(host, chapterUrl);
     var pageCount = 0;
 
     while (url.isNotEmpty && pageCount < _maxPages) {
@@ -45,16 +45,17 @@ class ChapterCrawler {
         cancelToken: cancelToken,
       );
 
-      final content = _extractor.extractChapterContent(html, contentRule, context: context);
+      final content = await _extractor.extractChapterContent(html, contentRule, context: context, baseUrl: host);
       if (content.isNotEmpty) {
         parts.add(content);
       }
 
       // Check for next page
-      final nextPageUrl = _extractor.extractNextPageUrl(
+      final nextPageUrl = await _extractor.extractNextPageUrl(
         html,
         contentRule.nextPage,
         context: context,
+        baseUrl: host,
       );
 
       if (nextPageUrl != null && nextPageUrl.isNotEmpty) {
@@ -81,7 +82,7 @@ class ChapterCrawler {
   }) async {
     final context = RuleContext();
     final allUrls = <String>[];
-    var url = chapterUrl;
+    var url = resolveUrl(host, chapterUrl);
     var pageCount = 0;
 
     while (url.isNotEmpty && pageCount < _maxPages) {
@@ -97,16 +98,17 @@ class ChapterCrawler {
         cancelToken: cancelToken,
       );
 
-      final imageUrls = _extractor.extractImageUrls(html, contentRule.images);
+      final imageUrls = await _extractor.extractImageUrls(html, contentRule.images, baseUrl: host);
       for (final imgUrl in imageUrls) {
         allUrls.add(resolveUrl(host, imgUrl));
       }
 
       // Check for next page
-      final nextPageUrl = _extractor.extractNextPageUrl(
+      final nextPageUrl = await _extractor.extractNextPageUrl(
         html,
         contentRule.nextPage,
         context: context,
+        baseUrl: host,
       );
 
       if (nextPageUrl != null && nextPageUrl.isNotEmpty) {

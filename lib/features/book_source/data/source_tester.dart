@@ -3,6 +3,7 @@ import 'package:readlive/features/book_source/data/content_extractor.dart';
 import 'package:readlive/features/book_source/data/html_fetcher.dart';
 import 'package:readlive/features/book_source/data/rule_context.dart';
 import 'package:readlive/features/book_source/data/rule_parser.dart';
+import 'package:readlive/features/book_source/data/search_service.dart';
 import 'package:readlive/features/book_source/domain/book_source_entity.dart';
 
 class SourceTestResult {
@@ -74,26 +75,30 @@ class SourceTester {
       // Step 1: Test search
       if (rule.search != null) {
         try {
-          final rawUrl = _parser.resolveTemplate(
+          final resolved = await SearchUrlResolver.resolve(
             rule.search!.url,
-            {'key': _testKeyword, 'page': '1'},
+            _testKeyword,
+            source.host,
             context: context,
+            parser: _parser,
           );
 
-          // Handle @post: prefix (Legado format)
           final String html;
-          if (rawUrl.startsWith('@post:')) {
-            final postBody = rawUrl.substring(6);
-            final parts = postBody.split(',');
-            final postUrl = resolveUrl(source.host, parts.first.trim());
-            final postData = parts.length > 1 ? parts.sublist(1).join(',').trim() : null;
-            html = await _fetcher.post(postUrl, data: postData);
+          if (resolved.isPost) {
+            html = await _fetcher.post(
+              resolved.url,
+              data: resolved.body,
+              headers: resolved.headers,
+            );
           } else {
-            html = await _fetcher.fetch(resolveUrl(source.host, rawUrl));
+            html = await _fetcher.fetch(
+              resolved.url,
+              headers: resolved.headers,
+            );
           }
 
-          final results = _extractor.extractSearchResults(
-            html, rule.search!, source.id, source.name, context: context,
+          final results = await _extractor.extractSearchResults(
+            html, rule.search!, source.id, source.name, context: context, baseUrl: source.host,
           );
           resultCount = results.length;
           searchOk = results.isNotEmpty;
@@ -125,7 +130,7 @@ class SourceTester {
               ? bookHtml
               : await _fetcher.fetch(tocUrl);
 
-          final chapters = _extractor.extractToc(tocHtml, rule.toc!, context: context);
+          final chapters = await _extractor.extractToc(tocHtml, rule.toc!, context: context, baseUrl: source.host);
           chapterCount = chapters.length;
           tocOk = chapters.isNotEmpty;
           if (chapters.isNotEmpty) {
@@ -144,7 +149,7 @@ class SourceTester {
               ? rule.content!.encoding
               : null;
           final html = await _fetcher.fetch(chapterUrl, encoding: encoding);
-          final content = _extractor.extractChapterContent(html, rule.content!, context: context);
+          final content = await _extractor.extractChapterContent(html, rule.content!, context: context, baseUrl: source.host);
           contentLength = content.length;
           contentOk = content.length > 100;
         } catch (_) {

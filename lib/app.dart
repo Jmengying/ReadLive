@@ -19,12 +19,19 @@ class _ReadLiveAppState extends ConsumerState<ReadLiveApp> {
   @override
   void initState() {
     super.initState();
-    _initApp();
+    // Use addPostFrameCallback to ensure widget tree and providers are ready
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _initApp();
+    });
   }
 
   Future<void> _initApp() async {
-    final repo = ref.read(bookSourceRepositoryProvider);
-    await AppInit.loadBuiltInSources(repo);
+    try {
+      final repo = ref.read(bookSourceRepositoryProvider);
+      await AppInit.loadBuiltInSources(repo);
+    } catch (e) {
+      debugPrint('AppInit error: $e');
+    }
     if (mounted) {
       setState(() => _initialized = true);
     }

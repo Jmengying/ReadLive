@@ -3,8 +3,8 @@ import 'package:readlive/features/book_source/data/search_service.dart';
 
 void main() {
   group('SearchUrlResolver', () {
-    test('resolves GET URL with key encoding', () {
-      final result = SearchUrlResolver.resolve(
+    test('resolves GET URL with key encoding', () async {
+      final result = await SearchUrlResolver.resolve(
         'https://example.com/search?q={{key}}&page={{page}}',
         '斗破苍穹',
         'https://example.com',
@@ -15,8 +15,8 @@ void main() {
       expect(result.body, isNull);
     });
 
-    test('resolves POST form body', () {
-      final result = SearchUrlResolver.resolve(
+    test('resolves POST form body', () async {
+      final result = await SearchUrlResolver.resolve(
         r'@post:https://example.com/search,key={{key}}&page={{page}}',
         'test',
         'https://example.com',
@@ -27,8 +27,8 @@ void main() {
       expect(result.body, contains('page=1'));
     });
 
-    test('resolves POST JSON body', () {
-      final result = SearchUrlResolver.resolve(
+    test('resolves POST JSON body', () async {
+      final result = await SearchUrlResolver.resolve(
         r'@post:https://example.com/api/search,{"q":"{{key}}","page":1}',
         'test',
         'https://example.com',
@@ -38,8 +38,8 @@ void main() {
       expect(result.body, contains('"q"'));
     });
 
-    test('resolves @Header with URL', () {
-      final result = SearchUrlResolver.resolve(
+    test('resolves @Header with URL', () async {
+      final result = await SearchUrlResolver.resolve(
         '@Header:Cookie=abc123\nhttps://example.com/search?q={{key}}',
         'test',
         'https://example.com',
@@ -49,8 +49,8 @@ void main() {
       expect(result.url, contains('example.com/search'));
     });
 
-    test('resolves relative URL against host', () {
-      final result = SearchUrlResolver.resolve(
+    test('resolves relative URL against host', () async {
+      final result = await SearchUrlResolver.resolve(
         '/search?q={{key}}',
         'test',
         'https://example.com',
@@ -58,8 +58,8 @@ void main() {
       expect(result.url, 'https://example.com/search?q=test');
     });
 
-    test('resolves @post: with body containing commas', () {
-      final result = SearchUrlResolver.resolve(
+    test('resolves @post: with body containing commas', () async {
+      final result = await SearchUrlResolver.resolve(
         r'@post:https://example.com/api,a=1,b=2,c={{key}}',
         'test',
         'https://example.com',
@@ -68,5 +68,7 @@ void main() {
       expect(result.url, 'https://example.com/api');
       expect(result.body, 'a=1,b=2,c=test');
     });
+
+    // @js: tests skipped — QuickJS runtime not available in headless test env
   });
 }

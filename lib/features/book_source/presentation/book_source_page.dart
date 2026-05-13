@@ -20,6 +20,35 @@ class _BookSourcePageState extends ConsumerState<BookSourcePage> {
   String _sortBy = 'weight'; // weight, name, lastTested
   bool _selectMode = false;
   final Set<String> _selectedIds = {};
+  bool _loadingBuiltIn = false;
+
+  @override
+  void initState() {
+    super.initState();
+    // Ensure built-in sources are loaded when page opens
+    _ensureBuiltInSources();
+  }
+
+  Future<void> _ensureBuiltInSources() async {
+    if (_loadingBuiltIn) return;
+    _loadingBuiltIn = true;
+    try {
+      final repo = ref.read(bookSourceRepositoryProvider);
+      final existing = await repo.getAllSources();
+      if (existing.isEmpty) {
+        // No sources at all — try loading built-in
+        try {
+          final jsonStr = await rootBundle.loadString('assets/built_in_sources.json');
+          await repo.importFromJson(jsonStr, builtIn: true);
+        } catch (e) {
+          debugPrint('Failed to load built-in sources on page open: $e');
+        }
+      }
+    } catch (e) {
+      debugPrint('Error checking sources: $e');
+    }
+    _loadingBuiltIn = false;
+  }
 
   @override
   Widget build(BuildContext context) {

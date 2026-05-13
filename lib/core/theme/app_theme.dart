@@ -9,14 +9,26 @@ class AppTheme {
           brightness: Brightness.light,
         ),
         useMaterial3: true,
-        scaffoldBackgroundColor: const Color(0xFFF5F5F0),
+        scaffoldBackgroundColor: const Color(0xFFF2F2F7), // iOS system gray
         appBarTheme: const AppBarTheme(
           centerTitle: true,
           elevation: 0,
+          scrolledUnderElevation: 0,
+          backgroundColor: Color(0xFFF2F2F7),
         ),
         cardTheme: CardTheme(
-          elevation: 1,
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+          elevation: 0,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(10),
+          ),
+          color: Colors.white,
+        ),
+        dividerTheme: const DividerThemeData(
+          color: Color(0xFFE5E5EA),
+          thickness: 0.5,
+        ),
+        listTileTheme: const ListTileThemeData(
+          contentPadding: EdgeInsets.symmetric(horizontal: 20),
         ),
       );
 
@@ -26,27 +38,39 @@ class AppTheme {
           brightness: Brightness.dark,
         ),
         useMaterial3: true,
-        scaffoldBackgroundColor: const Color(0xFF1A1A1A),
+        scaffoldBackgroundColor: const Color(0xFF000000), // iOS pure black
         appBarTheme: const AppBarTheme(
           centerTitle: true,
           elevation: 0,
+          scrolledUnderElevation: 0,
+          backgroundColor: Color(0xFF000000),
         ),
         cardTheme: CardTheme(
-          elevation: 1,
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+          elevation: 0,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(10),
+          ),
+          color: const Color(0xFF1C1C1E),
+        ),
+        dividerTheme: const DividerThemeData(
+          color: Color(0xFF38383A),
+          thickness: 0.5,
+        ),
+        listTileTheme: const ListTileThemeData(
+          contentPadding: EdgeInsets.symmetric(horizontal: 20),
         ),
       );
 
   // Preset accent colors
   static const accentColors = [
     Color(0xFF8B6914), // Gold (default)
-    Color(0xFF1976D2), // Blue
-    Color(0xFF388E3C), // Green
-    Color(0xFF7B1FA2), // Purple
-    Color(0xFFD32F2F), // Red
-    Color(0xFF00897B), // Teal
-    Color(0xFFC2185B), // Pink
-    Color(0xFFEF6C00), // Orange
+    Color(0xFF007AFF), // iOS Blue
+    Color(0xFF34C759), // iOS Green
+    Color(0xFFAF52DE), // iOS Purple
+    Color(0xFFFF3B30), // iOS Red
+    Color(0xFF5AC8FA), // iOS Teal
+    Color(0xFFFF2D55), // iOS Pink
+    Color(0xFFFF9500), // iOS Orange
   ];
 
   // Reading background presets

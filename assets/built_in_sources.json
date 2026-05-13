@@ -1,141 +1,121 @@
 [
   {
-    "bookSourceName": "起点中文网",
-    "bookSourceUrl": "https://www.qidian.com",
-    "searchUrl": "https://www.qidian.com/search?kw={{key}}",
-    "ruleSearch": {
-      "bookList": ".res-book-item",
-      "name": ".book-mid-info h4 a@text",
-      "author": ".author a:first-child@text",
-      "bookUrl": ".book-mid-info h4 a@href",
-      "coverUrl": ".book-img-box img@src",
-      "intro": ".intro@text"
-    },
+    "bookSourceGroup": "小说 书源",
+    "bookSourceName": "速读谷子",
+    "bookSourceType": 0,
+    "bookSourceUrl": "https://www.sudugu.org/",
+    "bookUrlPattern": "https://www.sudugu.com/\\d+/",
+    "enabled": true,
+    "lastUpdateTime": 1761736707845,
     "ruleBookInfo": {
-      "coverUrl": "#bookImg img@src",
-      "intro": ".book-intro p@text",
-      "author": ".writer@text",
-      "tocUrl": ""
-    },
-    "ruleToc": {
-      "chapterList": ".volume-wrap li a",
-      "chapterName": "@text",
-      "chapterUrl": "@href"
+      "author": ".itemtxt p.1@text",
+      "coverUrl": ".item img@src",
+      "intro": ".des.0@text",
+      "kind": ".itemtxt span@text",
+      "lastChapter": ".itemtxt li.0@text",
+      "name": "h1 a@text",
+      "wordCount": "h1 i@text"
     },
     "ruleContent": {
-      "content": ".read-content p@text"
-    }
+      "content": ".con@html",
+      "nextContentUrl": "text.下一页@href",
+      "replaceRegex": "##\\s*({{ book.durChapterTitle }}|.*作者：.*|PS：.*求推荐！|PS：.*求收藏！|感谢.*打赏.*|感谢.*推荐票.*|感谢.*月票.*|（.*月票.*）|（为大家的.*票加更.*）|第二更在.*|为防止采集.*支持！|网址：sudugu\\.com|必应.*速读谷|loadAdv.*)\\s*"
+    },
+    "ruleExplore": {},
+    "ruleSearch": {
+      "author": "p@text",
+      "bookList": ".item",
+      "bookUrl": "a.1@href",
+      "checkKeyWord": "谁让他修仙的",
+      "coverUrl": "img@src",
+      "kind": "span@text",
+      "lastChapter": "li.0@text",
+      "name": "h3@text",
+      "bookName": "a.1@text"
+    },
+    "ruleToc": {
+      "chapterList": "#list li a",
+      "chapterName": "@text",
+      "chapterUrl": "@href",
+      "nextTocUrl": "text.下一页@href"
+    },
+    "searchUrl": "https://www.sudugu.org/i/sor.aspx?key={{key}}",
+    "weight": 0
   },
   {
-    "bookSourceName": "书客",
-    "bookSourceUrl": "https://www.shuqi.com",
-    "searchUrl": "https://www.shuqi.com/search?keyword={{key}}",
-    "ruleSearch": {
-      "bookList": ".book-item",
-      "name": ".book-title@text",
-      "author": ".book-author@text",
-      "bookUrl": "a@href",
-      "coverUrl": ".book-cover img@src",
-      "intro": ".book-desc@text"
-    },
+    "bookSourceGroup": "漫画 书源",
+    "bookSourceName": "包子漫画",
+    "bookSourceType": 2,
+    "bookSourceUrl": "https://cn.bzmanga.com",
+    "enabled": true,
+    "lastUpdateTime": 1759430671956,
     "ruleBookInfo": {
-      "coverUrl": ".book-cover img@src",
-      "intro": ".book-desc@text",
-      "author": ".book-author@text",
-      "tocUrl": ""
-    },
-    "ruleToc": {
-      "chapterList": ".chapter-list li a",
-      "chapterName": "@text",
-      "chapterUrl": "@href"
+      "author": "class.comics-detail__author@text",
+      "coverUrl": "tag.amp-img.0@src##.w=.*##",
+      "intro": "class.comics-detail__desc@text",
+      "kind": "class.tag-list@text## ##,",
+      "lastChapter": "class.supporting-text@tag.a@text",
+      "name": "class.comics-detail__title@text",
+      "tocUrl": "class.comics-chapters@tag.span@href"
     },
     "ruleContent": {
-      "content": ".chapter-content p@text"
-    }
+      "content": "class.comic-contain@img@html##cdn##mh",
+      "nextContentUrl": "class.next_chapter@text.下一页@href"
+    },
+    "ruleExplore": {},
+    "ruleSearch": {
+      "author": ".comics-card__info@text",
+      "bookList": ".comics-card",
+      "bookUrl": ".comics-card__title a@href",
+      "checkKeyWord": "非人哉",
+      "coverUrl": "tag.amp-img.0@src##.w=.*##",
+      "kind": "class.tabs cls@text",
+      "name": ".comics-card__title@text"
+    },
+    "ruleToc": {
+      "chapterList": "class.pure-g[3,4]@class.comics-chapters__item||class.pure-g.2@class.comics-chapters__item[-1:0]",
+      "chapterName": "tag.a@text",
+      "chapterUrl": "tag.a@href",
+      "preUpdateJs": "book.canUpdate=false"
+    },
+    "searchUrl": "/search?q={{key}}",
+    "weight": 0
   },
   {
-    "bookSourceName": "飞卢小说",
-    "bookSourceUrl": "https://b.faloo.com",
-    "searchUrl": "https://b.faloo.com/search?k={{key}}",
-    "ruleSearch": {
-      "bookList": ".SearchResult li",
-      "name": ".SearchResult_Title a@text",
-      "author": ".SearchResult_Author a@text",
-      "bookUrl": ".SearchResult_Title a@href",
-      "coverUrl": ".SearchResult_Cover img@src",
-      "intro": ".SearchResult_Intro@text"
-    },
+    "bookSourceGroup": "漫画 书源",
+    "bookSourceName": "爱看漫画",
+    "bookSourceType": 2,
+    "bookSourceUrl": "https://m.kanman.com",
+    "enabled": true,
+    "lastUpdateTime": 1766318133353,
     "ruleBookInfo": {
-      "coverUrl": ".BookInfo_Cover img@src",
-      "intro": ".BookInfo_Intro@text",
-      "author": ".BookInfo_Author a@text",
-      "tocUrl": ""
-    },
-    "ruleToc": {
-      "chapterList": ".Chapter_List li a",
-      "chapterName": "@text",
-      "chapterUrl": "@href"
+      "author": "[property=\"og:novel:author\"]@content",
+      "kind": "[property=\"og:novel:category\"]@content",
+      "lastChapter": ".comic-update-status@text##.*-\\d+ ",
+      "name": "[property=\"og:novel:book_name\"]@content",
+      "tocUrl": "https://m.kanman.com/api/getchapterlist?product_id=1&productname=kmh&platformname=wap&comic_id=@get:{bid}"
     },
     "ruleContent": {
-      "content": ".ReadContent p@text"
-    }
-  },
-  {
-    "bookSourceName": "快看漫画",
-    "bookSourceUrl": "https://www.kuaikanmanhua.com",
-    "searchUrl": "https://www.kuaikanmanhua.com/search/{{key}}",
-    "bookSourceType": 1,
-    "ruleSearch": {
-      "bookList": ".search-result-item",
-      "name": ".title@text",
-      "author": ".author@text",
-      "bookUrl": "a@href",
-      "coverUrl": ".cover img@src",
-      "intro": ".desc@text"
+      "content": "$.data.current_chapter.chapter_img_list@js:\nheader={\"Referer\":baseUrl};\nheaders={\"headers\":JSON.stringify(header)};\nresult.split(\"\\n\").map(x=>'<img src=\\\"'+x+','+JSON.stringify(headers)+'\\\">').join(\"\\n\")",
+      "imageStyle": "FULL"
     },
-    "ruleBookInfo": {
-      "coverUrl": ".cover img@src",
-      "intro": ".desc@text",
-      "author": ".author@text",
-      "tocUrl": ""
+    "ruleExplore": {},
+    "ruleSearch": {
+      "author": "$.cartoon_author_list_name||$.comic_author",
+      "bookList": "$.data.data||$.data",
+      "bookUrl": "https://m.kanman.com/{{$.comic_id}}/",
+      "coverUrl": "https://image.yqmh.com/mh/{{$.comic_id}}.jpg-300x400.webp",
+      "intro": "$.cartoon_desc",
+      "kind": "$.comic_type##[a-zA-Z]|\\|",
+      "lastChapter": "$.latest_cartoon_topic_name||$.last_chapter_name",
+      "name": "$.comic_name@put:{bid:$.comic_id}"
     },
     "ruleToc": {
-      "chapterList": ".episode-list li a",
-      "chapterName": "@text",
-      "chapterUrl": "@href"
+      "chapterList": "-$.data.[*]",
+      "chapterName": "$.chapter_name",
+      "chapterUrl": "https://m.kanman.com/api/getchapterinfov2?product_id=1&productname=kmh&platformname=wap&comic_id=@get:{bid}&chapter_newid={{$.chapter_newid}}&isWebp=1&quality=low"
     },
-    "ruleContent": {
-      "content": ".comic-image img@src",
-      "images": ".comic-image img@src"
-    }
-  },
-  {
-    "bookSourceName": "腾讯动漫",
-    "bookSourceUrl": "https://ac.qq.com",
-    "searchUrl": "https://ac.qq.com/Comic/searchList/search/{{key}}",
-    "bookSourceType": 1,
-    "ruleSearch": {
-      "bookList": ".ret-works-cover",
-      "name": ".ret-works-title a@text",
-      "author": ".ret-works-author a@text",
-      "bookUrl": ".ret-works-title a@href",
-      "coverUrl": ".ret-works-cover img@src",
-      "intro": ".ret-works-dec@text"
-    },
-    "ruleBookInfo": {
-      "coverUrl": ".works-cover img@src",
-      "intro": ".works-dec@text",
-      "author": ".works-author a@text",
-      "tocUrl": ""
-    },
-    "ruleToc": {
-      "chapterList": ".chapter-list-all li a",
-      "chapterName": "@text",
-      "chapterUrl": "@href"
-    },
-    "ruleContent": {
-      "content": "#comicContain img@src",
-      "images": "#comicContain img@src"
-    }
+    "searchUrl": "https://m.kanman.com/api/serachcomic/?product_id=1&productname=kmh&platformname=wap&serachKey={{key}}&topNumber=10",
+    "weight": 0
   }
 ]

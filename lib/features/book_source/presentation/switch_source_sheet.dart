@@ -119,7 +119,7 @@ class _SwitchSourceSheetState extends ConsumerState<SwitchSourceSheet> {
 
       BookInfo? bookInfo;
       if (rule.bookInfo != null) {
-        bookInfo = extractor.extractBookInfo(bookHtml, rule.bookInfo!);
+        bookInfo = await extractor.extractBookInfo(bookHtml, rule.bookInfo!, baseUrl: source.host);
       }
 
       // Fetch TOC
@@ -135,7 +135,7 @@ class _SwitchSourceSheetState extends ConsumerState<SwitchSourceSheet> {
 
       List<TocEntry> newChapters = [];
       if (rule.toc != null) {
-        newChapters = extractor.extractToc(tocHtml, rule.toc!);
+        newChapters = await extractor.extractToc(tocHtml, rule.toc!, baseUrl: source.host);
       }
 
       if (newChapters.isEmpty) {

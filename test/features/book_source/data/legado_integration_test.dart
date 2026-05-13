@@ -9,7 +9,7 @@ void main() {
     final parser = RuleParser();
     final extractor = ContentExtractor(ruleParser: parser);
 
-    test('CSS selector extraction works as before', () {
+    test('CSS selector extraction works as before', () async {
       const html = '''
         <html><body>
           <div class="book-list">
@@ -18,7 +18,7 @@ void main() {
           </div>
         </body></html>
       ''';
-      final results = extractor.extractSearchResults(
+      final results = await extractor.extractSearchResults(
         html,
         SearchRule(url: '', list: '.book', bookName: 'a@text', bookUrl: 'a@href'),
         'src1',

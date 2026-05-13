@@ -97,19 +97,19 @@ class ReadingStats {
   });
 
   String get totalFormatted {
-    if (totalSeconds < 60) return '$totalSeconds秒';
-    if (totalSeconds < 3600) return '${totalSeconds ~/ 60}分钟';
+    if (totalSeconds < 60) return '$totalSeconds 秒';
+    if (totalSeconds < 3600) return '${totalSeconds ~/ 60} 分钟';
     final h = totalSeconds ~/ 3600;
     final m = (totalSeconds % 3600) ~/ 60;
-    return m > 0 ? '$h小时$m分' : '$h小时';
+    return m > 0 ? '$h 小时 $m 分钟' : '$h 小时';
   }
 
   String get todayFormatted {
-    if (todaySeconds < 60) return '$todaySeconds秒';
-    if (todaySeconds < 3600) return '${todaySeconds ~/ 60}分钟';
+    if (todaySeconds < 60) return '$todaySeconds 秒';
+    if (todaySeconds < 3600) return '${todaySeconds ~/ 60} 分钟';
     final h = todaySeconds ~/ 3600;
     final m = (todaySeconds % 3600) ~/ 60;
-    return m > 0 ? '$h小时$m分' : '$h小时';
+    return m > 0 ? '$h 小时 $m 分钟' : '$h 小时';
   }
 
   String get todayWordsFormatted {
