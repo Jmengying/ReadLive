@@ -26,11 +26,21 @@ final appRouter = GoRouter(
     ),
     GoRoute(
       path: '/reader/:bookId',
-      builder: (context, state) {
+      pageBuilder: (context, state) {
         final bookId = state.pathParameters['bookId']!;
         final chapterIndex = int.tryParse(
             state.uri.queryParameters['chapter'] ?? '0') ?? 0;
-        return ReaderPage(bookId: bookId, initialChapter: chapterIndex);
+        return CustomTransitionPage(
+          child: ReaderPage(bookId: bookId, initialChapter: chapterIndex),
+          transitionsBuilder: (context, animation, secondaryAnimation, child) {
+            return FadeTransition(
+              opacity: CurveTween(curve: Curves.easeInOut).animate(animation),
+              child: child,
+            );
+          },
+          transitionDuration: const Duration(milliseconds: 300),
+          reverseTransitionDuration: const Duration(milliseconds: 250),
+        );
       },
     ),
     GoRoute(
@@ -62,14 +72,24 @@ final appRouter = GoRouter(
     ),
     GoRoute(
       path: '/book-detail',
-      builder: (context, state) {
+      pageBuilder: (context, state) {
         final bookUrl = state.uri.queryParameters['bookUrl'] ?? '';
         final sourceId = state.uri.queryParameters['sourceId'] ?? '';
         final bookName = state.uri.queryParameters['bookName'] ?? '';
-        return BookDetailPage(
-          bookUrl: bookUrl,
-          sourceId: sourceId,
-          bookName: bookName,
+        return CustomTransitionPage(
+          child: BookDetailPage(
+            bookUrl: bookUrl,
+            sourceId: sourceId,
+            bookName: bookName,
+          ),
+          transitionsBuilder: (context, animation, secondaryAnimation, child) {
+            return FadeTransition(
+              opacity: CurveTween(curve: Curves.easeInOut).animate(animation),
+              child: child,
+            );
+          },
+          transitionDuration: const Duration(milliseconds: 250),
+          reverseTransitionDuration: const Duration(milliseconds: 200),
         );
       },
     ),
