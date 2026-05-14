@@ -660,7 +660,7 @@ class _BookList extends ConsumerWidget {
         final sortedBooks = List<BookEntity>.from(books);
         switch (sortMode) {
           case 'name':
-            sortedBooks.sort((a, b) => a.title.compareTo(b.title));
+            sortedBooks.sort((a, b) => _naturalCompare(a.title, b.title));
           case 'recent':
             sortedBooks.sort((a, b) {
               final aTime = a.lastReadAt ?? 0;
@@ -789,4 +789,33 @@ class _BookList extends ConsumerWidget {
       },
     );
   }
+}
+
+/// Natural sort comparison that handles numbers within strings.
+/// "第2卷" comes before "第10卷" (numeric comparison).
+int _naturalCompare(String a, String b) {
+  final pattern = RegExp(r'(\d+)|(\D+)');
+  final aMatches = pattern.allMatches(a).toList();
+  final bMatches = pattern.allMatches(b).toList();
+
+  for (var i = 0; i < aMatches.length && i < bMatches.length; i++) {
+    final aPart = aMatches[i].group(0)!;
+    final bPart = bMatches[i].group(0)!;
+
+    final aIsNum = RegExp(r'^\d+$').hasMatch(aPart);
+    final bIsNum = RegExp(r'^\d+$').hasMatch(bPart);
+
+    if (aIsNum && bIsNum) {
+      // Both are numbers: compare numerically
+      final cmp = int.parse(aPart).compareTo(int.parse(bPart));
+      if (cmp != 0) return cmp;
+    } else {
+      // At least one is text: compare as string
+      final cmp = aPart.compareTo(bPart);
+      if (cmp != 0) return cmp;
+    }
+  }
+
+  // Shorter string comes first
+  return aMatches.length.compareTo(bMatches.length);
 }
