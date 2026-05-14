@@ -125,21 +125,11 @@ class AppDrawer extends ConsumerWidget {
                     },
                   ),
                   _DrawerTile(
-                    icon: Icons.upload_file,
-                    title: '备份数据',
-                    onTap: () async {
+                    icon: Icons.backup_outlined,
+                    title: '数据备份',
+                    onTap: () {
                       Navigator.pop(context);
-                      await Future.delayed(const Duration(milliseconds: 500));
-                      _doBackup(context, ref);
-                    },
-                  ),
-                  _DrawerTile(
-                    icon: Icons.download,
-                    title: '恢复数据',
-                    onTap: () async {
-                      Navigator.pop(context);
-                      await Future.delayed(const Duration(milliseconds: 500));
-                      _doRestore(context, ref);
+                      _showBackupRestoreDialog(context, ref);
                     },
                   ),
                   _DrawerTile(
@@ -234,6 +224,44 @@ class AppDrawer extends ConsumerWidget {
     if (result != null && result.isNotEmpty) {
       ref.read(signatureProvider.notifier).setSignature(result);
     }
+  }
+
+  void _showBackupRestoreDialog(BuildContext context, WidgetRef ref) {
+    final rootContext = context;
+    showModalBottomSheet(
+      context: context,
+      builder: (ctx) => SafeArea(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const Padding(
+              padding: EdgeInsets.all(16),
+              child: Text('备份与恢复',
+                  style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600)),
+            ),
+            ListTile(
+              leading: const Icon(Icons.upload_file),
+              title: const Text('备份数据'),
+              subtitle: const Text('导出数据库到文件'),
+              onTap: () {
+                Navigator.pop(ctx);
+                _doBackup(rootContext, ref);
+              },
+            ),
+            ListTile(
+              leading: const Icon(Icons.download),
+              title: const Text('恢复数据'),
+              subtitle: const Text('从备份文件恢复'),
+              onTap: () {
+                Navigator.pop(ctx);
+                _doRestore(rootContext, ref);
+              },
+            ),
+            const SizedBox(height: 8),
+          ],
+        ),
+      ),
+    );
   }
 
   Future<void> _doBackup(BuildContext context, WidgetRef ref) async {
