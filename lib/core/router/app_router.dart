@@ -18,11 +18,29 @@ final appRouter = GoRouter(
   routes: [
     GoRoute(
       path: '/',
-      builder: (context, state) => const BookshelfPage(contentType: 'novel'),
+      pageBuilder: (context, state) => CustomTransitionPage(
+        child: const BookshelfPage(contentType: 'novel'),
+        transitionsBuilder: (context, animation, secondaryAnimation, child) {
+          return FadeTransition(
+            opacity: CurvedAnimation(parent: animation, curve: Curves.easeInOut),
+            child: child,
+          );
+        },
+        transitionDuration: const Duration(milliseconds: 200),
+      ),
     ),
     GoRoute(
       path: '/manga',
-      builder: (context, state) => const BookshelfPage(contentType: 'manga'),
+      pageBuilder: (context, state) => CustomTransitionPage(
+        child: const BookshelfPage(contentType: 'manga'),
+        transitionsBuilder: (context, animation, secondaryAnimation, child) {
+          return FadeTransition(
+            opacity: CurvedAnimation(parent: animation, curve: Curves.easeInOut),
+            child: child,
+          );
+        },
+        transitionDuration: const Duration(milliseconds: 200),
+      ),
     ),
     GoRoute(
       path: '/reader/:bookId',
