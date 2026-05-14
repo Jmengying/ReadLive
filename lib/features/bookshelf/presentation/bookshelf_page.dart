@@ -466,60 +466,62 @@ class _BookshelfPageState extends ConsumerState<BookshelfPage>
       final result = await FilePicker.platform.pickFiles(
         type: FileType.custom,
         allowedExtensions: ['txt', 'epub', 'pdf', 'cbz', 'cbr'],
+        allowMultiple: true, // Enable batch import
       );
       if (result == null || result.files.isEmpty) return;
 
-      final file = result.files.first;
-      final filePath = file.path;
-      if (filePath == null) {
-        _showError('无法获取文件路径');
-        return;
-      }
-
-      final f = File(filePath);
-      if (!await f.exists()) {
-        _showError('文件不存在: $filePath');
-        return;
-      }
-
       final repo = ref.read(bookRepositoryProvider);
+      var imported = 0;
+      var failed = 0;
 
-      if (filePath.toLowerCase().endsWith('.txt')) {
-        final parser = TxtParser();
-        final book = await parser.importTxtFile(filePath, repo);
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text('已导入: ${book.title}')),
-          );
+      for (final file in result.files) {
+        final filePath = file.path;
+        if (filePath == null) {
+          failed++;
+          continue;
         }
-      } else if (filePath.toLowerCase().endsWith('.epub')) {
-        final parser = EpubParser();
-        final book = await parser.importEpubFile(filePath, repo);
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text('已导入: ${book.title}')),
-          );
+
+        final f = File(filePath);
+        if (!await f.exists()) {
+          failed++;
+          continue;
         }
-      } else if (filePath.toLowerCase().endsWith('.pdf')) {
-        final parser = PdfParser();
-        final book = await parser.importPdfFile(filePath, repo);
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text('已导入: ${book.title}')),
-          );
+
+        try {
+          if (filePath.toLowerCase().endsWith('.txt')) {
+            final parser = TxtParser();
+            await parser.importTxtFile(filePath, repo);
+            imported++;
+          } else if (filePath.toLowerCase().endsWith('.epub')) {
+            final parser = EpubParser();
+            await parser.importEpubFile(filePath, repo);
+            imported++;
+          } else if (filePath.toLowerCase().endsWith('.pdf')) {
+            final parser = PdfParser();
+            await parser.importPdfFile(filePath, repo);
+            imported++;
+          } else if (filePath.toLowerCase().endsWith('.cbz') ||
+                     filePath.toLowerCase().endsWith('.cbr')) {
+            final parser = CbzParser();
+            await parser.importCbzFile(filePath, repo);
+            imported++;
+          } else {
+            failed++;
+          }
+        } catch (e) {
+          failed++;
         }
-      } else if (filePath.toLowerCase().endsWith('.cbz') ||
-                 filePath.toLowerCase().endsWith('.cbr')) {
-        final parser = CbzParser();
-        final book = await parser.importCbzFile(filePath, repo);
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text('已导入: ${book.title}')),
-          );
-        }
-      } else {
-        _showError('不支持的文件格式');
       }
+
+      if (mounted) {
+        final msg = failed > 0
+            ? '导入完成: $imported 本成功, $failed 本失败'
+            : '导入完成: $imported 本书';
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(msg)),
+        );
+      }
+      return;
     } catch (e, stackTrace) {
       debugPrint('导入失败: $e\n$stackTrace');
       _showError('导入失败: $e');
