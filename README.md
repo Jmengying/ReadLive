@@ -1,3 +1,6 @@
+<div align="center">
+  <img src="readlive.png"  height="240" title="Miku Stage" />
+</div>
 # ReadLive
 
 本地优先的小说与漫画阅读器，支持 Android、iOS、Windows
