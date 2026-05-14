@@ -71,6 +71,18 @@ class BookRepository {
     await _db.updateBook(companion);
   }
 
+  Future<void> updateBookProgress(String bookId, double bookProgress) async {
+    final book = await _db.getBookById(bookId);
+    if (book == null) return;
+    final now = DateTime.now().millisecondsSinceEpoch;
+    final companion = book.toCompanion(true).copyWith(
+          bookProgress: Value(bookProgress),
+          lastReadAt: Value(now),
+          updatedAt: Value(now),
+        );
+    await _db.updateBook(companion);
+  }
+
   Future<void> updateReadingPosition(
     String bookId,
     int chapterIndex,

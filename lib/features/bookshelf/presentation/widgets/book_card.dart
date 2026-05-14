@@ -112,7 +112,7 @@ class BookCard extends StatelessWidget {
                   ),
                 ),
                 Text(
-                  _formatProgress(book.progress),
+                  _formatProgress(book.bookProgress),
                   style: theme.textTheme.bodySmall?.copyWith(
                     fontSize: 10,
                     color: theme.colorScheme.onSurfaceVariant,

@@ -668,7 +668,7 @@ class _BookList extends ConsumerWidget {
               return bTime.compareTo(aTime); // Descending: most recent first
             });
           case 'unread':
-            sortedBooks.removeWhere((b) => b.progress >= 0.99);
+            sortedBooks.removeWhere((b) => b.bookProgress >= 0.99);
             sortedBooks.sort((a, b) {
               final aTime = a.lastReadAt ?? 0;
               final bTime = b.lastReadAt ?? 0;
@@ -776,7 +776,7 @@ class _BookList extends ConsumerWidget {
                     style: theme.textTheme.bodySmall)
                 : null,
             trailing: Text(
-              '${(book.progress * 100).toStringAsFixed(0)}%',
+              '${(book.bookProgress * 100).toStringAsFixed(0)}%',
               style: theme.textTheme.bodySmall?.copyWith(
                 color: theme.colorScheme.onSurfaceVariant,
               ),

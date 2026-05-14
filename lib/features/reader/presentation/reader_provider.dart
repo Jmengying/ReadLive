@@ -94,6 +94,12 @@ class ReaderNotifier extends StateNotifier<ReaderState> {
     );
   }
 
+  Future<void> updateBookProgress(int currentChapter, int totalChapters) async {
+    if (totalChapters <= 0) return;
+    final bookProgress = (currentChapter + 1) / totalChapters;
+    await _repo.updateBookProgress(_bookId, bookProgress.clamp(0.0, 1.0));
+  }
+
   void setChapterAndPage(int chapterIndex, int pageIndex) {
     state = state.copyWith(
       currentChapterIndex: chapterIndex,

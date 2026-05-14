@@ -11,7 +11,8 @@ class BookEntity {
   final String contentType;
   final String? groupId;
   final int? lastReadAt;
-  final double progress;
+  final double progress; // Chapter scroll position (for restoring reading position)
+  final double bookProgress; // Overall book progress (chapters read / total)
   final int lastChapterIndex;
   final double lastScrollOffset;
   final int lastPageIndex;
@@ -30,6 +31,7 @@ class BookEntity {
     this.groupId,
     this.lastReadAt,
     this.progress = 0.0,
+    this.bookProgress = 0.0,
     this.lastChapterIndex = 0,
     this.lastScrollOffset = 0.0,
     this.lastPageIndex = 0,
@@ -50,6 +52,7 @@ class BookEntity {
       groupId: data.groupId,
       lastReadAt: data.lastReadAt,
       progress: data.progress,
+      bookProgress: data.bookProgress,
       lastChapterIndex: data.lastChapterIndex,
       lastScrollOffset: data.lastScrollOffset,
       lastPageIndex: data.lastPageIndex,

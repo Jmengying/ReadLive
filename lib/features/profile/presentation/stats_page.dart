@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:fl_chart/fl_chart.dart';
 import 'package:readlive/features/profile/presentation/stats_provider.dart';
+import 'package:readlive/features/bookshelf/presentation/bookshelf_provider.dart';
 import 'package:readlive/features/settings/presentation/settings_provider.dart';
 
 class StatsPage extends ConsumerWidget {
@@ -10,6 +11,8 @@ class StatsPage extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final theme = Theme.of(context);
+    // Invalidate stats when refresh counter changes
+    ref.watch(statsRefreshProvider);
     final statsAsync = ref.watch(statsProvider);
     final dailyGoal = ref.watch(dailyGoalProvider);
     final goalNotify = ref.watch(goalNotifyProvider);

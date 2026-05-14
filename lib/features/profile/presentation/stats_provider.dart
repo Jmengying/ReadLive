@@ -115,9 +115,9 @@ final statsProvider = FutureProvider<ReadingStatsData>((ref) async {
   var finishedBooks = 0;
   var readingBooks = 0;
   for (final book in books) {
-    if (book.progress >= 0.99) {
+    if (book.bookProgress >= 0.99) {
       finishedBooks++;
-    } else if (book.progress > 0) {
+    } else if (book.bookProgress > 0) {
       readingBooks++;
     }
   }

@@ -391,18 +391,15 @@ class _ReaderPageState extends ConsumerState<ReaderPage> {
                               onToggleTts: _toggleTts,
                               onAddBookmark: () =>
                                   _addBookmark(chapters[chapterIndex], 0),
-                              onChapterChange: (index) {
-                                _saveScrollPosition();
-                                notifier.setChapter(index);
-                              },
+                              onChapterChange: (index) => _changeChapter(index, chapters.length),
                               onSwitchSource: book.sourceId != null
                                   ? () => _showSwitchSourceSheet(book)
                                   : null,
                               onPreviousChapter: chapterIndex > 0
-                                  ? () { _saveScrollPosition(); notifier.setChapter(chapterIndex - 1); }
+                                  ? () => _changeChapter(chapterIndex - 1, chapters.length)
                                   : () {},
                               onNextChapter: chapterIndex < chapters.length - 1
-                                  ? () { _saveScrollPosition(); notifier.setChapter(chapterIndex + 1); }
+                                  ? () => _changeChapter(chapterIndex + 1, chapters.length)
                                   : () {},
                             ),
                           if (readerState.isLocked)
@@ -533,17 +530,15 @@ class _ReaderPageState extends ConsumerState<ReaderPage> {
                               onShowBookmarks: () =>
                                   _showBookmarkSheet(chapters[chapterIndex]),
                               onToggleNightMode: _toggleNightMode,
-                              onChapterChange: (index) {
-                                notifier.setChapter(index);
-                              },
+                              onChapterChange: (index) => _changeChapter(index, chapters.length),
                               onSwitchSource: book.sourceId != null
                                   ? () => _showSwitchSourceSheet(book)
                                   : null,
                               onPreviousChapter: chapterIndex > 0
-                                  ? () => notifier.setChapter(chapterIndex - 1)
+                                  ? () => _changeChapter(chapterIndex - 1, chapters.length)
                                   : () {},
                               onNextChapter: chapterIndex < chapters.length - 1
-                                  ? () => notifier.setChapter(chapterIndex + 1)
+                                  ? () => _changeChapter(chapterIndex + 1, chapters.length)
                                   : () {},
                             ),
                           if (readerState.isLocked)
@@ -733,17 +728,15 @@ class _ReaderPageState extends ConsumerState<ReaderPage> {
                             onToggleTts: _toggleTts,
                             onAddBookmark: () => _addBookmark(
                                 chapters[chapterIndex], pageIndex),
-                            onChapterChange: (index) {
-                              notifier.setChapter(index);
-                            },
+                            onChapterChange: (index) => _changeChapter(index, chapters.length),
                             onSwitchSource: book.sourceId != null
                                 ? () => _showSwitchSourceSheet(book)
                                 : null,
                             onPreviousChapter: chapterIndex > 0
-                                ? () => notifier.setChapter(chapterIndex - 1)
+                                ? () => _changeChapter(chapterIndex - 1, chapters.length)
                                 : () {},
                             onNextChapter: chapterIndex < chapters.length - 1
-                                ? () => notifier.setChapter(chapterIndex + 1)
+                                ? () => _changeChapter(chapterIndex + 1, chapters.length)
                                 : () {},
                           ),
                         if (readerState.isLocked)
@@ -866,6 +859,13 @@ class _ReaderPageState extends ConsumerState<ReaderPage> {
     );
   }
 
+  void _changeChapter(int index, int totalChapters) {
+    _saveScrollPosition();
+    final notifier = ref.read(readerNotifierProvider(widget.bookId).notifier);
+    notifier.setChapter(index);
+    notifier.updateBookProgress(index, totalChapters);
+  }
+
   void _showSwitchSourceSheet(dynamic book) {
     showModalBottomSheet(
       context: context,
@@ -911,9 +911,9 @@ class _ReaderPageState extends ConsumerState<ReaderPage> {
                   title: Text(chapters[index].title),
                   onTap: () {
                     _saveScrollPosition();
-                    ref
-                        .read(readerNotifierProvider(widget.bookId).notifier)
-                        .setChapter(index);
+                    final notifier = ref.read(readerNotifierProvider(widget.bookId).notifier);
+                    notifier.setChapter(index);
+                    notifier.updateBookProgress(index, chapters.length);
                     Navigator.pop(ctx);
                   },
                 ),
@@ -946,8 +946,10 @@ class _ReaderPageState extends ConsumerState<ReaderPage> {
         onJumpToBookmark: (chapterIndex, position) {
           final notifier =
               ref.read(readerNotifierProvider(widget.bookId).notifier);
+          final chapters = ref.read(chaptersProvider(widget.bookId)).valueOrNull ?? [];
           notifier.setChapter(chapterIndex);
           notifier.setPage(position);
+          notifier.updateBookProgress(chapterIndex, chapters.length);
         },
       ),
     );
