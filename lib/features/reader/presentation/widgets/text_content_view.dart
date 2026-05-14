@@ -171,13 +171,7 @@ class TextContentView extends StatelessWidget {
   }
 
   Widget _buildImageWidget(String imagePath) {
-    // If path is relative (no directory separators), resolve using imageDirPath
-    String fullPath = imagePath;
-    if (!imagePath.contains('/') && !imagePath.contains('\\') && imageDirPath != null && imageDirPath!.isNotEmpty) {
-      fullPath = '$imageDirPath/$imagePath';
-    }
-
-    final file = File(fullPath);
+    final file = File(imagePath);
     if (!file.existsSync()) {
       return const SizedBox.shrink();
     }

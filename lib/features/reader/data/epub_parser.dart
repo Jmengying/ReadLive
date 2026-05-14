@@ -113,10 +113,9 @@ class EpubParser {
       if (!await coverDir.exists()) {
         await coverDir.create(recursive: true);
       }
-      final fileName = '${_uuid.v4()}.png';
-      final file = File('${coverDir.path}/$fileName');
+      final file = File('${coverDir.path}/${_uuid.v4()}.png');
       await file.writeAsBytes(coverBytes);
-      return fileName; // Store relative path (just filename)
+      return file.path;
     } catch (e) {
       return null;
     }
@@ -283,7 +282,6 @@ class EpubParser {
   }
 
   /// Resolve an img src to an [[IMG:...]] placeholder, using the path map for reliable lookup.
-  /// Stores only the filename (relative path) to survive app reinstall.
   String _resolveImagePlaceholder(
     String src,
     String imageDirPath,
@@ -293,18 +291,14 @@ class EpubParser {
     if (imagePathMap != null) {
       final normalized = _normalizePath(_resolveRelativePath(src));
       final match = imagePathMap[normalized];
-      if (match != null) {
-        // Store only filename, not full path
-        final fileName = match.split(Platform.pathSeparator).last;
-        return '[[IMG:$fileName]]';
-      }
+      if (match != null) return '[[IMG:$match]]';
     }
 
     // 2. Fallback: flatten path and check if file exists
     final resolved = _resolveRelativePath(src);
     final safeName = resolved.replaceAll('/', '_').replaceAll('\\', '_');
     final directPath = '$imageDirPath/$safeName';
-    if (File(directPath).existsSync()) return '[[IMG:$safeName]]';
+    if (File(directPath).existsSync()) return '[[IMG:$directPath]]';
 
     // 3. Last resort: scan image directory for matching filename
     if (imagePathMap != null) {
@@ -312,15 +306,12 @@ class EpubParser {
       final filename = srcLower.split('/').last;
       for (final entry in imagePathMap.entries) {
         if (entry.key.endsWith('/$filename') || entry.key == filename) {
-          final fileName = entry.value.split(Platform.pathSeparator).last;
-          return '[[IMG:$fileName]]';
+          return '[[IMG:${entry.value}]]';
         }
       }
     }
 
     return '';
-
-    return '[[IMG:$directPath]]';
   }
 
   /// Resolve relative path by stripping leading ../ segments.
