@@ -662,10 +662,18 @@ class _BookList extends ConsumerWidget {
           case 'name':
             sortedBooks.sort((a, b) => a.title.compareTo(b.title));
           case 'recent':
-            // Keep original order (already sorted by last read)
-            break;
+            sortedBooks.sort((a, b) {
+              final aTime = a.lastReadAt ?? 0;
+              final bTime = b.lastReadAt ?? 0;
+              return bTime.compareTo(aTime); // Descending: most recent first
+            });
           case 'unread':
             sortedBooks.removeWhere((b) => b.progress >= 0.99);
+            sortedBooks.sort((a, b) {
+              final aTime = a.lastReadAt ?? 0;
+              final bTime = b.lastReadAt ?? 0;
+              return bTime.compareTo(aTime);
+            });
         }
 
         if (sortedBooks.isEmpty) {
