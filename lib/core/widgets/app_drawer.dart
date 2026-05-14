@@ -1,16 +1,13 @@
 import 'dart:convert';
 import 'dart:io';
 import 'package:archive/archive.dart';
-import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:path_provider/path_provider.dart';
+import 'package:readlive/core/database/app_database.dart';
 import 'package:readlive/features/bookshelf/presentation/bookshelf_provider.dart';
-import 'package:readlive/features/reader/data/txt_parser.dart';
-import 'package:readlive/features/reader/data/epub_parser.dart';
-import 'package:readlive/features/reader/data/pdf_parser.dart';
 import 'package:readlive/features/settings/presentation/settings_provider.dart';
 import 'package:uuid/uuid.dart';
 
@@ -179,11 +176,8 @@ class AppDrawer extends ConsumerWidget {
 
   Future<void> _pickAvatar(BuildContext context, WidgetRef ref) async {
     try {
-      final result = await FilePicker.platform.pickFiles(
-        type: FileType.image,
-      );
+      final result = await FilePicker.platform.pickFiles(type: FileType.image);
       if (result == null || result.files.isEmpty) return;
-
       final filePath = result.files.first.path;
       if (filePath == null) return;
 
@@ -194,16 +188,13 @@ class AppDrawer extends ConsumerWidget {
       }
 
       final ext = filePath.split('.').last;
-      final destPath =
-          '${avatarDir.path}/avatar_${const Uuid().v4()}.$ext';
+      final destPath = '${avatarDir.path}/avatar_${const Uuid().v4()}.$ext';
       await File(filePath).copy(destPath);
-
       ref.read(avatarPathProvider.notifier).setPath(destPath);
     } catch (e) {
       if (context.mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('设置头像失败: $e')),
-        );
+        ScaffoldMessenger.of(context)
+            .showSnackBar(SnackBar(content: Text('设置头像失败: $e')));
       }
     }
   }
@@ -219,52 +210,44 @@ class AppDrawer extends ConsumerWidget {
           controller: controller,
           maxLength: 30,
           autofocus: true,
-          decoration: const InputDecoration(
-            hintText: '输入个性签名',
-          ),
+          decoration: const InputDecoration(hintText: '输入个性签名'),
         ),
         actions: [
           TextButton(
-            onPressed: () => Navigator.pop(ctx),
-            child: const Text('取消'),
-          ),
+              onPressed: () => Navigator.pop(ctx), child: const Text('取消')),
           FilledButton(
-            onPressed: () => Navigator.pop(ctx, controller.text.trim()),
-            child: const Text('确定'),
-          ),
+              onPressed: () => Navigator.pop(ctx, controller.text.trim()),
+              child: const Text('确定')),
         ],
       ),
     );
-
     if (result != null && result.isNotEmpty) {
       ref.read(signatureProvider.notifier).setSignature(result);
     }
   }
 
-  void _showBackupRestoreDialog(BuildContext context, WidgetRef ref) {
-    // Capture the root context before showing the sheet
-    final rootContext = context;
+  void _showBackupRestoreDialog(BuildContext scaffoldContext, WidgetRef ref) {
     showModalBottomSheet(
-      context: context,
-      builder: (ctx) => SafeArea(
+      context: scaffoldContext,
+      builder: (sheetCtx) => SafeArea(
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
             const Padding(
               padding: EdgeInsets.all(16),
               child: Text('备份与恢复',
-                  style:
-                      TextStyle(fontSize: 16, fontWeight: FontWeight.w600)),
+                  style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600)),
             ),
             ListTile(
               leading: const Icon(Icons.upload_file),
               title: const Text('备份数据'),
               subtitle: const Text('导出数据库到文件'),
               onTap: () {
-                Navigator.pop(ctx);
-                // Delay to allow sheet to close
-                Future.delayed(const Duration(milliseconds: 300), () {
-                  _backupDatabase(rootContext, ref);
+                Navigator.pop(sheetCtx);
+                Future.delayed(const Duration(milliseconds: 400), () {
+                  if (scaffoldContext.mounted) {
+                    _doBackup(scaffoldContext, ref);
+                  }
                 });
               },
             ),
@@ -273,9 +256,11 @@ class AppDrawer extends ConsumerWidget {
               title: const Text('恢复数据'),
               subtitle: const Text('从备份文件恢复'),
               onTap: () {
-                Navigator.pop(ctx);
-                Future.delayed(const Duration(milliseconds: 300), () {
-                  _restoreDatabase(rootContext, ref);
+                Navigator.pop(sheetCtx);
+                Future.delayed(const Duration(milliseconds: 400), () {
+                  if (scaffoldContext.mounted) {
+                    _doRestore(scaffoldContext, ref);
+                  }
                 });
               },
             ),
@@ -286,27 +271,21 @@ class AppDrawer extends ConsumerWidget {
     );
   }
 
-  Future<void> _backupDatabase(
-      BuildContext context, WidgetRef ref) async {
+  Future<void> _doBackup(BuildContext context, WidgetRef ref) async {
+    final messenger = ScaffoldMessenger.of(context);
     try {
-      debugPrint('备份: 开始备份流程');
       final appDir = await getApplicationDocumentsDirectory();
-      debugPrint('备份: 应用目录 ${appDir.path}');
       final dbFile = File('${appDir.path}/readlive.sqlite');
 
       if (!await dbFile.exists()) {
-        debugPrint('备份: 数据库文件不存在');
-        if (context.mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('数据库文件不存在')),
-          );
-        }
+        messenger.showSnackBar(const SnackBar(content: Text('数据库文件不存在')));
         return;
       }
 
+      messenger.showSnackBar(const SnackBar(content: Text('正在备份...')));
+
       final repo = ref.read(bookRepositoryProvider);
       final books = await repo.getAllBooks();
-      debugPrint('备份: 共 ${books.length} 本书');
 
       final savePath = await FilePicker.platform.saveFile(
         dialogTitle: '保存备份文件',
@@ -316,49 +295,35 @@ class AppDrawer extends ConsumerWidget {
         allowedExtensions: ['zip'],
       );
 
-      debugPrint('备份: 保存路径 $savePath');
-      if (savePath == null) {
-        debugPrint('备份: 用户取消了选择');
-        return;
-      }
-
-      // Show progress
-      debugPrint('备份: context.mounted = ${context.mounted}');
-      if (context.mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('正在备份...')),
-        );
-      }
+      if (savePath == null) return;
 
       final archive = Archive();
 
-      // Add metadata
+      // Metadata
       final metadata = jsonEncode({
         'version': '1.0.0',
         'createdAt': DateTime.now().toIso8601String(),
         'bookCount': books.length,
-        'appVersion': '1.0.0',
       });
       final metaBytes = utf8.encode(metadata);
       archive.addFile(
           ArchiveFile('metadata.json', metaBytes.length, metaBytes));
 
-      // Add database
+      // Database
       final dbBytes = await dbFile.readAsBytes();
       archive.addFile(
           ArchiveFile('readlive.sqlite', dbBytes.length, dbBytes));
 
-      // Helper to add directory contents
+      // Helper to add directory
       Future<void> addDir(String name) async {
         final dir = Directory('${appDir.path}/$name');
         if (await dir.exists()) {
           await for (final file in dir.list(recursive: true)) {
             if (file is File) {
-              final relativePath =
+              final relPath =
                   '$name/${file.path.substring(dir.path.length + 1)}';
               final bytes = await file.readAsBytes();
-              archive.addFile(
-                  ArchiveFile(relativePath, bytes.length, bytes));
+              archive.addFile(ArchiveFile(relPath, bytes.length, bytes));
             }
           }
         }
@@ -369,36 +334,22 @@ class AppDrawer extends ConsumerWidget {
       await addDir('book_images');
       await addDir('avatars');
 
-      // Encode and save
       final zipBytes = ZipEncoder().encode(archive);
       if (zipBytes == null) {
-        if (context.mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('备份编码失败')),
-          );
-        }
+        messenger.showSnackBar(const SnackBar(content: Text('备份编码失败')));
         return;
       }
-      await File(savePath).writeAsBytes(zipBytes);
-      debugPrint('备份: 文件已保存到 $savePath');
 
-      if (context.mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('备份成功，共 ${books.length} 本书')),
-        );
-      }
+      await File(savePath).writeAsBytes(zipBytes);
+      messenger
+          .showSnackBar(SnackBar(content: Text('备份成功: ${books.length} 本书')));
     } catch (e) {
-      debugPrint('备份失败: $e');
-      if (context.mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('备份失败: $e')),
-        );
-      }
+      messenger.showSnackBar(SnackBar(content: Text('备份失败: $e')));
     }
   }
 
-  Future<void> _restoreDatabase(
-      BuildContext context, WidgetRef ref) async {
+  Future<void> _doRestore(BuildContext context, WidgetRef ref) async {
+    final messenger = ScaffoldMessenger.of(context);
     try {
       final result = await FilePicker.platform.pickFiles(
         type: FileType.custom,
@@ -411,35 +362,27 @@ class AppDrawer extends ConsumerWidget {
 
       final backupFile = File(filePath);
       if (!await backupFile.exists()) {
-        if (context.mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('备份文件不存在')),
-          );
-        }
+        messenger.showSnackBar(const SnackBar(content: Text('备份文件不存在')));
         return;
       }
 
-      // Decode zip and read metadata
       final zipBytes = await backupFile.readAsBytes();
       final archive = ZipDecoder().decodeBytes(zipBytes);
 
       final metadataFile = archive.findFile('metadata.json');
       if (metadataFile == null) {
-        if (context.mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('无效的备份文件（缺少 metadata.json）')),
-          );
-        }
+        messenger.showSnackBar(const SnackBar(content: Text('无效的备份文件')));
         return;
       }
 
       final metadata =
           jsonDecode(utf8.decode(metadataFile.content as List<int>));
-      final backupVersion = metadata['version'] as String? ?? '未知';
-      final createdAt = metadata['createdAt'] as String? ?? '未知';
       final bookCount = metadata['bookCount'] as int? ?? 0;
+      final createdAt = (metadata['createdAt'] as String? ?? '');
+      final timeStr = createdAt.length >= 19
+          ? createdAt.substring(0, 19).replaceAll('T', ' ')
+          : createdAt;
 
-      // Confirm before restoring
       if (!context.mounted) return;
       final confirmed = await showDialog<bool>(
         context: context,
@@ -450,46 +393,38 @@ class AppDrawer extends ConsumerWidget {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               const Text('恢复将覆盖当前所有数据，确定继续吗？'),
-              const SizedBox(height: 12),
-              Text('版本: $backupVersion',
-                  style: Theme.of(ctx).textTheme.bodySmall),
-              Text(
-                  '备份时间: ${createdAt.length >= 19 ? createdAt.substring(0, 19).replaceAll('T', ' ') : createdAt}',
-                  style: Theme.of(ctx).textTheme.bodySmall),
+              if (timeStr.isNotEmpty) ...[
+                const SizedBox(height: 8),
+                Text('备份时间: $timeStr',
+                    style: Theme.of(ctx).textTheme.bodySmall),
+              ],
               Text('书籍数量: $bookCount',
                   style: Theme.of(ctx).textTheme.bodySmall),
             ],
           ),
           actions: [
             TextButton(
-              onPressed: () => Navigator.pop(ctx, false),
-              child: const Text('取消'),
-            ),
+                onPressed: () => Navigator.pop(ctx, false),
+                child: const Text('取消')),
             FilledButton(
-              onPressed: () => Navigator.pop(ctx, true),
-              child: const Text('确定恢复'),
-            ),
+                onPressed: () => Navigator.pop(ctx, true),
+                child: const Text('确定恢复')),
           ],
         ),
       );
 
       if (confirmed != true) return;
 
-      // Show progress
-      if (context.mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('正在恢复...')),
-        );
-      }
+      messenger.showSnackBar(const SnackBar(content: Text('正在恢复...')));
 
       final appDir = await getApplicationDocumentsDirectory();
 
-      // Close the current database before overwriting
+      // Close database
       try {
         ref.read(databaseProvider).close();
       } catch (_) {}
 
-      // Extract all files from backup
+      // Extract files
       for (final file in archive) {
         if (file.isFile) {
           final outFile = File('${appDir.path}/${file.name}');
@@ -498,21 +433,11 @@ class AppDrawer extends ConsumerWidget {
         }
       }
 
-      if (context.mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('恢复成功，请重启应用'),
-            duration: Duration(seconds: 5),
-          ),
-        );
-      }
+      messenger.showSnackBar(const SnackBar(
+          content: Text('恢复成功，请重启应用'),
+          duration: Duration(seconds: 5)));
     } catch (e) {
-      debugPrint('恢复失败: $e');
-      if (context.mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('恢复失败: $e')),
-        );
-      }
+      messenger.showSnackBar(SnackBar(content: Text('恢复失败: $e')));
     }
   }
 }
