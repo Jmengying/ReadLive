@@ -1,5 +1,6 @@
 import 'dart:convert';
 import 'dart:io';
+import 'dart:typed_data';
 import 'package:archive/archive.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -37,16 +38,20 @@ class AppDrawer extends ConsumerWidget {
                     child: CircleAvatar(
                       radius: 40,
                       backgroundColor: theme.colorScheme.primaryContainer,
-                      backgroundImage: avatarPath != null &&
-                              File(avatarPath).existsSync()
-                          ? FileImage(File(avatarPath))
-                          : null,
-                      child: avatarPath == null ||
-                              !File(avatarPath).existsSync()
-                          ? Icon(Icons.person,
+                      child: FutureBuilder<ImageProvider?>(
+                        future: _resolveAvatarPath(avatarPath),
+                        builder: (context, snapshot) {
+                          if (snapshot.hasData && snapshot.data != null) {
+                            return CircleAvatar(
+                              radius: 40,
+                              backgroundImage: snapshot.data,
+                            );
+                          }
+                          return Icon(Icons.person,
                               size: 40,
-                              color: theme.colorScheme.onPrimaryContainer)
-                          : null,
+                              color: theme.colorScheme.onPrimaryContainer);
+                        },
+                      ),
                     ),
                   ),
                   const SizedBox(height: 12),
@@ -174,6 +179,26 @@ class AppDrawer extends ConsumerWidget {
     );
   }
 
+  Future<ImageProvider?> _resolveAvatarPath(String? avatarPath) async {
+    if (avatarPath == null || avatarPath.isEmpty) return null;
+
+    // Try as absolute path first (legacy)
+    if (avatarPath.contains('/') || avatarPath.contains('\\')) {
+      final file = File(avatarPath);
+      if (file.existsSync()) return FileImage(file);
+    }
+
+    // Try as relative path in avatars directory
+    try {
+      final appDir = await getApplicationDocumentsDirectory();
+      final fullPath = '${appDir.path}/avatars/$avatarPath';
+      final file = File(fullPath);
+      if (file.existsSync()) return FileImage(file);
+    } catch (_) {}
+
+    return null;
+  }
+
   Future<void> _pickAvatar(BuildContext context, WidgetRef ref) async {
     try {
       final result = await FilePicker.platform.pickFiles(type: FileType.image);
@@ -188,9 +213,10 @@ class AppDrawer extends ConsumerWidget {
       }
 
       final ext = filePath.split('.').last;
-      final destPath = '${avatarDir.path}/avatar_${const Uuid().v4()}.$ext';
+      final fileName = 'avatar_${const Uuid().v4()}.$ext';
+      final destPath = '${avatarDir.path}/$fileName';
       await File(filePath).copy(destPath);
-      ref.read(avatarPathProvider.notifier).setPath(destPath);
+      ref.read(avatarPathProvider.notifier).setPath(fileName); // Store only filename
     } catch (e) {
       if (context.mounted) {
         ScaffoldMessenger.of(context)
@@ -276,15 +302,6 @@ class AppDrawer extends ConsumerWidget {
       final repo = ref.read(bookRepositoryProvider);
       final books = await repo.getAllBooks();
 
-      final savePath = await FilePicker.platform.saveFile(
-        dialogTitle: '保存备份文件',
-        fileName: 'readlive_backup_${DateTime.now().millisecondsSinceEpoch}.zip',
-        type: FileType.custom,
-        allowedExtensions: ['zip'],
-      );
-
-      if (savePath == null) return;
-
       final archive = Archive();
 
       // Metadata
@@ -320,7 +337,29 @@ class AppDrawer extends ConsumerWidget {
         return;
       }
 
-      await File(savePath).writeAsBytes(zipBytes);
+      // On mobile (iOS/Android), pass bytes directly to saveFile
+      // On desktop (Windows/Mac/Linux), saveFile returns a path
+      final fileName = 'readlive_backup_${DateTime.now().millisecondsSinceEpoch}.zip';
+
+      if (Platform.isIOS || Platform.isAndroid) {
+        await FilePicker.platform.saveFile(
+          dialogTitle: '保存备份文件',
+          fileName: fileName,
+          type: FileType.custom,
+          allowedExtensions: ['zip'],
+          bytes: Uint8List.fromList(zipBytes),
+        );
+      } else {
+        final savePath = await FilePicker.platform.saveFile(
+          dialogTitle: '保存备份文件',
+          fileName: fileName,
+          type: FileType.custom,
+          allowedExtensions: ['zip'],
+        );
+        if (savePath == null) return;
+        await File(savePath).writeAsBytes(zipBytes);
+      }
+
       _showMsg(context, '备份成功: ${books.length} 本书');
     } catch (e) {
       _showMsg(context, '备份失败: $e');

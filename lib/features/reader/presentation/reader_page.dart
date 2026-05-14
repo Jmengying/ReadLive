@@ -3,6 +3,7 @@ import 'dart:convert';
 import 'dart:io';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:path_provider/path_provider.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:drift/drift.dart' hide Column;
@@ -376,6 +377,7 @@ class _ReaderPageState extends ConsumerState<ReaderPage> {
                                       eyeProtection: readingSettings.eyeProtection,
                                       eyeProtectionIntensity: readingSettings.eyeProtectionIntensity,
                                       scrollable: false,
+                                      imageDirPath: 'book_images/${widget.bookId}',
                                     ),
                                   ),
                           ),
@@ -712,6 +714,7 @@ class _ReaderPageState extends ConsumerState<ReaderPage> {
                             letterSpacing: readingSettings.letterSpacing,
                             eyeProtection: readingSettings.eyeProtection,
                             eyeProtectionIntensity: readingSettings.eyeProtectionIntensity,
+                            imageDirPath: 'book_images/${widget.bookId}',
                           ),
                         ),
                         ),

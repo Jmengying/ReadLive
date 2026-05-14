@@ -1,5 +1,6 @@
 import 'dart:io';
 import 'package:flutter/material.dart';
+import 'package:path_provider/path_provider.dart';
 
 class HighlightRange {
   final int startOffset;
@@ -27,6 +28,7 @@ class TextContentView extends StatelessWidget {
   final double eyeProtectionIntensity;
   final bool scrollable;
   final List<HighlightRange> highlights;
+  final String? imageDirPath; // Base directory for resolving relative image paths
 
   static final _imgPattern = RegExp(r'\[\[IMG:(.*?)\]\]');
 
@@ -45,6 +47,7 @@ class TextContentView extends StatelessWidget {
     this.eyeProtectionIntensity = 0.3,
     this.scrollable = true,
     this.highlights = const [],
+    this.imageDirPath,
   });
 
   @override
@@ -168,10 +171,57 @@ class TextContentView extends StatelessWidget {
   }
 
   Widget _buildImageWidget(String imagePath) {
-    final file = File(imagePath);
+    // If path is relative (no directory separators), resolve using imageDirPath
+    String fullPath = imagePath;
+    if (!imagePath.contains('/') && !imagePath.contains('\\') && imageDirPath != null) {
+      // imageDirPath is relative like "book_images/bookId"
+      // We need to get the full path from app documents directory
+      // For now, try the path as-is first, then try with common prefixes
+      final possiblePaths = [
+        imagePath, // Legacy absolute path
+        '$imageDirPath/$imagePath', // Relative path from imageDirPath
+      ];
+
+      for (final path in possiblePaths) {
+        final file = File(path);
+        if (file.existsSync()) {
+          return _buildImage(file);
+        }
+      }
+
+      // If not found, try to resolve asynchronously
+      return FutureBuilder<String>(
+        future: _resolveImagePath(imagePath),
+        builder: (context, snapshot) {
+          if (snapshot.hasData && snapshot.data!.isNotEmpty) {
+            final file = File(snapshot.data!);
+            if (file.existsSync()) {
+              return _buildImage(file);
+            }
+          }
+          return const SizedBox.shrink();
+        },
+      );
+    }
+
+    final file = File(fullPath);
     if (!file.existsSync()) {
       return const SizedBox.shrink();
     }
+    return _buildImage(file);
+  }
+
+  Future<String> _resolveImagePath(String fileName) async {
+    if (imageDirPath == null) return '';
+    try {
+      final appDir = await getApplicationDocumentsDirectory();
+      return '${appDir.path}/$imageDirPath/$fileName';
+    } catch (_) {
+      return '';
+    }
+  }
+
+  Widget _buildImage(File file) {
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 8),
       child: Image.file(

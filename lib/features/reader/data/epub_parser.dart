@@ -282,6 +282,7 @@ class EpubParser {
   }
 
   /// Resolve an img src to an [[IMG:...]] placeholder, using the path map for reliable lookup.
+  /// Stores only the filename (relative path) to survive app reinstall.
   String _resolveImagePlaceholder(
     String src,
     String imageDirPath,
@@ -291,14 +292,18 @@ class EpubParser {
     if (imagePathMap != null) {
       final normalized = _normalizePath(_resolveRelativePath(src));
       final match = imagePathMap[normalized];
-      if (match != null) return '[[IMG:$match]]';
+      if (match != null) {
+        // Store only filename, not full path
+        final fileName = match.split(Platform.pathSeparator).last;
+        return '[[IMG:$fileName]]';
+      }
     }
 
     // 2. Fallback: flatten path and check if file exists
     final resolved = _resolveRelativePath(src);
     final safeName = resolved.replaceAll('/', '_').replaceAll('\\', '_');
     final directPath = '$imageDirPath/$safeName';
-    if (File(directPath).existsSync()) return '[[IMG:$directPath]]';
+    if (File(directPath).existsSync()) return '[[IMG:$safeName]]';
 
     // 3. Last resort: scan image directory for matching filename
     if (imagePathMap != null) {
@@ -306,7 +311,8 @@ class EpubParser {
       final filename = srcLower.split('/').last;
       for (final entry in imagePathMap.entries) {
         if (entry.key.endsWith('/$filename') || entry.key == filename) {
-          return '[[IMG:${entry.value}]]';
+          final fileName = entry.value.split(Platform.pathSeparator).last;
+          return '[[IMG:$fileName]]';
         }
       }
     }
