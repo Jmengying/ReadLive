@@ -33,27 +33,29 @@ final appRouter = GoRouter(
         return CustomTransitionPage(
           child: ReaderPage(bookId: bookId, initialChapter: chapterIndex),
           transitionsBuilder: (context, animation, secondaryAnimation, child) {
-            // Opening: slide up + fade in
-            // Closing: slide down + fade out
-            final curved = CurvedAnimation(
-              parent: animation,
-              curve: Curves.easeOutCubic,
-              reverseCurve: Curves.easeInCubic,
-            );
+            return AnimatedBuilder(
+              animation: animation,
+              builder: (context, child) {
+                final progress = Curves.easeInOut.transform(animation.value);
+                // Rotate from -90deg (closed) to 0deg (open)
+                final angle = -1.5708 * (1 - progress); // -90deg to 0
 
-            return SlideTransition(
-              position: Tween<Offset>(
-                begin: const Offset(0, 0.08),
-                end: Offset.zero,
-              ).animate(curved),
-              child: FadeTransition(
-                opacity: curved,
-                child: child,
-              ),
+                return Transform(
+                  alignment: Alignment.centerRight, // Hinge on the right side
+                  transform: Matrix4.identity()
+                    ..setEntry(3, 2, 0.002) // Perspective
+                    ..rotateY(angle),
+                  child: Opacity(
+                    opacity: progress.clamp(0.0, 1.0),
+                    child: child,
+                  ),
+                );
+              },
+              child: child,
             );
           },
-          transitionDuration: const Duration(milliseconds: 350),
-          reverseTransitionDuration: const Duration(milliseconds: 300),
+          transitionDuration: const Duration(milliseconds: 500),
+          reverseTransitionDuration: const Duration(milliseconds: 400),
         );
       },
     ),
