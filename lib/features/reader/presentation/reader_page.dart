@@ -12,6 +12,7 @@ import 'package:readlive/core/database/app_database.dart';
 import 'package:readlive/core/theme/app_theme.dart';
 import 'package:readlive/features/bookshelf/presentation/bookshelf_provider.dart';
 import 'package:readlive/features/bookshelf/domain/book_entity.dart';
+import 'package:readlive/features/profile/presentation/stats_provider.dart';
 import 'package:readlive/features/settings/presentation/settings_provider.dart';
 import 'package:readlive/features/reader/domain/chapter_entity.dart';
 import 'package:readlive/features/reader/presentation/reader_provider.dart';
@@ -48,7 +49,7 @@ class _ReaderPageState extends ConsumerState<ReaderPage> {
     _segmentStartTime = DateTime.now();
     _enableWakelock();
     // Save reading session every 30 seconds
-    _saveTimer = Timer.periodic(const Duration(seconds: 30), (_) => _saveSegment());
+    _saveTimer = Timer.periodic(const Duration(seconds: 30), (_) => unawaited(_saveSegment()));
     // Save scroll position 1 second after user stops scrolling
     _scrollController.addListener(_onScroll);
     if (widget.initialChapter > 0) {
@@ -177,7 +178,7 @@ class _ReaderPageState extends ConsumerState<ReaderPage> {
     }
   }
 
-  void _saveSegment() {
+  Future<void> _saveSegment() async {
     final now = DateTime.now();
     final durationSeconds = now.difference(_segmentStartTime).inSeconds;
     if (durationSeconds < 3) return;
@@ -207,7 +208,7 @@ class _ReaderPageState extends ConsumerState<ReaderPage> {
     );
 
     final db = ref.read(databaseProvider);
-    db.insertReadingSession(ReadingSessionsTableCompanion(
+    await db.insertReadingSession(ReadingSessionsTableCompanion(
       id: Value(const Uuid().v4()),
       bookId: Value(widget.bookId),
       startTime: Value(_segmentStartTime.millisecondsSinceEpoch),
@@ -220,6 +221,9 @@ class _ReaderPageState extends ConsumerState<ReaderPage> {
     _segmentStartTime = now;
     // Bump refresh counter synchronously
     ref.read(statsRefreshProvider.notifier).state++;
+    // Invalidate stats providers to force refresh
+    ref.invalidate(statsProvider);
+    ref.invalidate(readingStatsProvider);
   }
 
   Future<void> _enableWakelock() async {

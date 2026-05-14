@@ -112,9 +112,10 @@ class EpubParser {
       if (!await coverDir.exists()) {
         await coverDir.create(recursive: true);
       }
-      final file = File('${coverDir.path}/${_uuid.v4()}.png');
+      final fileName = '${_uuid.v4()}.png';
+      final file = File('${coverDir.path}/$fileName');
       await file.writeAsBytes(coverBytes);
-      return file.path;
+      return fileName; // Store relative path (just filename)
     } catch (e) {
       return null;
     }

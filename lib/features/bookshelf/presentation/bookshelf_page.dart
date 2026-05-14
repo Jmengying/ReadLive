@@ -741,12 +741,28 @@ class _BookList extends ConsumerWidget {
                 borderRadius: BorderRadius.circular(4),
               ),
               child: book.coverPath != null
-                  ? ClipRRect(
-                      borderRadius: BorderRadius.circular(4),
-                      child: Image.file(
-                        File(book.coverPath!),
-                        fit: BoxFit.cover,
-                        errorBuilder: (_, __, ___) => Center(
+                  ? FutureBuilder<String?>(
+                      future: resolveCoverPath(book.coverPath),
+                      builder: (context, snapshot) {
+                        if (snapshot.hasData && snapshot.data != null) {
+                          return ClipRRect(
+                            borderRadius: BorderRadius.circular(4),
+                            child: Image.file(
+                              File(snapshot.data!),
+                              fit: BoxFit.cover,
+                              errorBuilder: (_, __, ___) => Center(
+                                child: Text(
+                                  book.title.substring(
+                                      0, book.title.length.clamp(0, 2)),
+                                  style: theme.textTheme.bodySmall?.copyWith(
+                                    color: theme.colorScheme.onPrimaryContainer,
+                                  ),
+                                ),
+                              ),
+                            ),
+                          );
+                        }
+                        return Center(
                           child: Text(
                             book.title.substring(
                                 0, book.title.length.clamp(0, 2)),
@@ -754,8 +770,8 @@ class _BookList extends ConsumerWidget {
                               color: theme.colorScheme.onPrimaryContainer,
                             ),
                           ),
-                        ),
-                      ),
+                        );
+                      },
                     )
                   : Center(
                       child: Text(

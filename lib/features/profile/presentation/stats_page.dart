@@ -5,14 +5,28 @@ import 'package:readlive/features/profile/presentation/stats_provider.dart';
 import 'package:readlive/features/bookshelf/presentation/bookshelf_provider.dart';
 import 'package:readlive/features/settings/presentation/settings_provider.dart';
 
-class StatsPage extends ConsumerWidget {
+class StatsPage extends ConsumerStatefulWidget {
   const StatsPage({super.key});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final theme = Theme.of(context);
+  ConsumerState<StatsPage> createState() => _StatsPageState();
+}
+
+class _StatsPageState extends ConsumerState<StatsPage> {
+  @override
+  void initState() {
+    super.initState();
     // Invalidate stats when refresh counter changes
-    ref.watch(statsRefreshProvider);
+    ref.listenManual(statsRefreshProvider, (prev, next) {
+      if (prev != next) {
+        ref.invalidate(statsProvider);
+      }
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
     final statsAsync = ref.watch(statsProvider);
     final dailyGoal = ref.watch(dailyGoalProvider);
     final goalNotify = ref.watch(goalNotifyProvider);
@@ -191,7 +205,7 @@ class StatsPage extends ConsumerWidget {
               ),
               const Spacer(),
               GestureDetector(
-                onTap: () => _showGoalSettingsDialog(context, ref, dailyGoal, goalNotify),
+                onTap: () => _showGoalSettingsDialog(context, dailyGoal, goalNotify),
                 child: Icon(Icons.settings_outlined,
                     size: 18, color: theme.colorScheme.onSurfaceVariant),
               ),
@@ -211,7 +225,7 @@ class StatsPage extends ConsumerWidget {
               child: OutlinedButton.icon(
                 icon: const Icon(Icons.add, size: 18),
                 label: const Text('设置阅读目标'),
-                onPressed: () => _showGoalSettingsDialog(context, ref, dailyGoal, goalNotify),
+                onPressed: () => _showGoalSettingsDialog(context, dailyGoal, goalNotify),
               ),
             ),
           ] else ...[
@@ -272,7 +286,7 @@ class StatsPage extends ConsumerWidget {
   }
 
   void _showGoalSettingsDialog(
-      BuildContext context, WidgetRef ref, int currentGoal, bool currentNotify) {
+      BuildContext context, int currentGoal, bool currentNotify) {
     final controller =
         TextEditingController(text: currentGoal > 0 ? '$currentGoal' : '');
     bool notify = currentNotify;

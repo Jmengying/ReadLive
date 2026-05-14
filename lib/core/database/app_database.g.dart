@@ -353,6 +353,14 @@ class $BooksTableTable extends BooksTable
       type: DriftSqlType.double,
       requiredDuringInsert: false,
       defaultValue: const Constant(0.0));
+  static const VerificationMeta _bookProgressMeta =
+      const VerificationMeta('bookProgress');
+  @override
+  late final GeneratedColumn<double> bookProgress = GeneratedColumn<double>(
+      'book_progress', aliasedName, false,
+      type: DriftSqlType.double,
+      requiredDuringInsert: false,
+      defaultValue: const Constant(0.0));
   static const VerificationMeta _lastChapterIndexMeta =
       const VerificationMeta('lastChapterIndex');
   @override
@@ -402,6 +410,7 @@ class $BooksTableTable extends BooksTable
         groupId,
         lastReadAt,
         progress,
+        bookProgress,
         lastChapterIndex,
         lastScrollOffset,
         lastPageIndex,
@@ -469,6 +478,12 @@ class $BooksTableTable extends BooksTable
       context.handle(_progressMeta,
           progress.isAcceptableOrUnknown(data['progress']!, _progressMeta));
     }
+    if (data.containsKey('book_progress')) {
+      context.handle(
+          _bookProgressMeta,
+          bookProgress.isAcceptableOrUnknown(
+              data['book_progress']!, _bookProgressMeta));
+    }
     if (data.containsKey('last_chapter_index')) {
       context.handle(
           _lastChapterIndexMeta,
@@ -530,6 +545,8 @@ class $BooksTableTable extends BooksTable
           .read(DriftSqlType.int, data['${effectivePrefix}last_read_at']),
       progress: attachedDatabase.typeMapping
           .read(DriftSqlType.double, data['${effectivePrefix}progress'])!,
+      bookProgress: attachedDatabase.typeMapping
+          .read(DriftSqlType.double, data['${effectivePrefix}book_progress'])!,
       lastChapterIndex: attachedDatabase.typeMapping.read(
           DriftSqlType.int, data['${effectivePrefix}last_chapter_index'])!,
       lastScrollOffset: attachedDatabase.typeMapping.read(
@@ -561,6 +578,7 @@ class BooksTableData extends DataClass implements Insertable<BooksTableData> {
   final String? groupId;
   final int? lastReadAt;
   final double progress;
+  final double bookProgress;
   final int lastChapterIndex;
   final double lastScrollOffset;
   final int lastPageIndex;
@@ -578,6 +596,7 @@ class BooksTableData extends DataClass implements Insertable<BooksTableData> {
       this.groupId,
       this.lastReadAt,
       required this.progress,
+      required this.bookProgress,
       required this.lastChapterIndex,
       required this.lastScrollOffset,
       required this.lastPageIndex,
@@ -611,6 +630,7 @@ class BooksTableData extends DataClass implements Insertable<BooksTableData> {
       map['last_read_at'] = Variable<int>(lastReadAt);
     }
     map['progress'] = Variable<double>(progress);
+    map['book_progress'] = Variable<double>(bookProgress);
     map['last_chapter_index'] = Variable<int>(lastChapterIndex);
     map['last_scroll_offset'] = Variable<double>(lastScrollOffset);
     map['last_page_index'] = Variable<int>(lastPageIndex);
@@ -645,6 +665,7 @@ class BooksTableData extends DataClass implements Insertable<BooksTableData> {
           ? const Value.absent()
           : Value(lastReadAt),
       progress: Value(progress),
+      bookProgress: Value(bookProgress),
       lastChapterIndex: Value(lastChapterIndex),
       lastScrollOffset: Value(lastScrollOffset),
       lastPageIndex: Value(lastPageIndex),
@@ -668,6 +689,7 @@ class BooksTableData extends DataClass implements Insertable<BooksTableData> {
       groupId: serializer.fromJson<String?>(json['groupId']),
       lastReadAt: serializer.fromJson<int?>(json['lastReadAt']),
       progress: serializer.fromJson<double>(json['progress']),
+      bookProgress: serializer.fromJson<double>(json['bookProgress']),
       lastChapterIndex: serializer.fromJson<int>(json['lastChapterIndex']),
       lastScrollOffset: serializer.fromJson<double>(json['lastScrollOffset']),
       lastPageIndex: serializer.fromJson<int>(json['lastPageIndex']),
@@ -690,6 +712,7 @@ class BooksTableData extends DataClass implements Insertable<BooksTableData> {
       'groupId': serializer.toJson<String?>(groupId),
       'lastReadAt': serializer.toJson<int?>(lastReadAt),
       'progress': serializer.toJson<double>(progress),
+      'bookProgress': serializer.toJson<double>(bookProgress),
       'lastChapterIndex': serializer.toJson<int>(lastChapterIndex),
       'lastScrollOffset': serializer.toJson<double>(lastScrollOffset),
       'lastPageIndex': serializer.toJson<int>(lastPageIndex),
@@ -710,6 +733,7 @@ class BooksTableData extends DataClass implements Insertable<BooksTableData> {
           Value<String?> groupId = const Value.absent(),
           Value<int?> lastReadAt = const Value.absent(),
           double? progress,
+          double? bookProgress,
           int? lastChapterIndex,
           double? lastScrollOffset,
           int? lastPageIndex,
@@ -727,6 +751,7 @@ class BooksTableData extends DataClass implements Insertable<BooksTableData> {
         groupId: groupId.present ? groupId.value : this.groupId,
         lastReadAt: lastReadAt.present ? lastReadAt.value : this.lastReadAt,
         progress: progress ?? this.progress,
+        bookProgress: bookProgress ?? this.bookProgress,
         lastChapterIndex: lastChapterIndex ?? this.lastChapterIndex,
         lastScrollOffset: lastScrollOffset ?? this.lastScrollOffset,
         lastPageIndex: lastPageIndex ?? this.lastPageIndex,
@@ -748,6 +773,9 @@ class BooksTableData extends DataClass implements Insertable<BooksTableData> {
       lastReadAt:
           data.lastReadAt.present ? data.lastReadAt.value : this.lastReadAt,
       progress: data.progress.present ? data.progress.value : this.progress,
+      bookProgress: data.bookProgress.present
+          ? data.bookProgress.value
+          : this.bookProgress,
       lastChapterIndex: data.lastChapterIndex.present
           ? data.lastChapterIndex.value
           : this.lastChapterIndex,
@@ -776,6 +804,7 @@ class BooksTableData extends DataClass implements Insertable<BooksTableData> {
           ..write('groupId: $groupId, ')
           ..write('lastReadAt: $lastReadAt, ')
           ..write('progress: $progress, ')
+          ..write('bookProgress: $bookProgress, ')
           ..write('lastChapterIndex: $lastChapterIndex, ')
           ..write('lastScrollOffset: $lastScrollOffset, ')
           ..write('lastPageIndex: $lastPageIndex, ')
@@ -798,6 +827,7 @@ class BooksTableData extends DataClass implements Insertable<BooksTableData> {
       groupId,
       lastReadAt,
       progress,
+      bookProgress,
       lastChapterIndex,
       lastScrollOffset,
       lastPageIndex,
@@ -818,6 +848,7 @@ class BooksTableData extends DataClass implements Insertable<BooksTableData> {
           other.groupId == this.groupId &&
           other.lastReadAt == this.lastReadAt &&
           other.progress == this.progress &&
+          other.bookProgress == this.bookProgress &&
           other.lastChapterIndex == this.lastChapterIndex &&
           other.lastScrollOffset == this.lastScrollOffset &&
           other.lastPageIndex == this.lastPageIndex &&
@@ -837,6 +868,7 @@ class BooksTableCompanion extends UpdateCompanion<BooksTableData> {
   final Value<String?> groupId;
   final Value<int?> lastReadAt;
   final Value<double> progress;
+  final Value<double> bookProgress;
   final Value<int> lastChapterIndex;
   final Value<double> lastScrollOffset;
   final Value<int> lastPageIndex;
@@ -855,6 +887,7 @@ class BooksTableCompanion extends UpdateCompanion<BooksTableData> {
     this.groupId = const Value.absent(),
     this.lastReadAt = const Value.absent(),
     this.progress = const Value.absent(),
+    this.bookProgress = const Value.absent(),
     this.lastChapterIndex = const Value.absent(),
     this.lastScrollOffset = const Value.absent(),
     this.lastPageIndex = const Value.absent(),
@@ -874,6 +907,7 @@ class BooksTableCompanion extends UpdateCompanion<BooksTableData> {
     this.groupId = const Value.absent(),
     this.lastReadAt = const Value.absent(),
     this.progress = const Value.absent(),
+    this.bookProgress = const Value.absent(),
     this.lastChapterIndex = const Value.absent(),
     this.lastScrollOffset = const Value.absent(),
     this.lastPageIndex = const Value.absent(),
@@ -896,6 +930,7 @@ class BooksTableCompanion extends UpdateCompanion<BooksTableData> {
     Expression<String>? groupId,
     Expression<int>? lastReadAt,
     Expression<double>? progress,
+    Expression<double>? bookProgress,
     Expression<int>? lastChapterIndex,
     Expression<double>? lastScrollOffset,
     Expression<int>? lastPageIndex,
@@ -915,6 +950,7 @@ class BooksTableCompanion extends UpdateCompanion<BooksTableData> {
       if (groupId != null) 'group_id': groupId,
       if (lastReadAt != null) 'last_read_at': lastReadAt,
       if (progress != null) 'progress': progress,
+      if (bookProgress != null) 'book_progress': bookProgress,
       if (lastChapterIndex != null) 'last_chapter_index': lastChapterIndex,
       if (lastScrollOffset != null) 'last_scroll_offset': lastScrollOffset,
       if (lastPageIndex != null) 'last_page_index': lastPageIndex,
@@ -936,6 +972,7 @@ class BooksTableCompanion extends UpdateCompanion<BooksTableData> {
       Value<String?>? groupId,
       Value<int?>? lastReadAt,
       Value<double>? progress,
+      Value<double>? bookProgress,
       Value<int>? lastChapterIndex,
       Value<double>? lastScrollOffset,
       Value<int>? lastPageIndex,
@@ -954,6 +991,7 @@ class BooksTableCompanion extends UpdateCompanion<BooksTableData> {
       groupId: groupId ?? this.groupId,
       lastReadAt: lastReadAt ?? this.lastReadAt,
       progress: progress ?? this.progress,
+      bookProgress: bookProgress ?? this.bookProgress,
       lastChapterIndex: lastChapterIndex ?? this.lastChapterIndex,
       lastScrollOffset: lastScrollOffset ?? this.lastScrollOffset,
       lastPageIndex: lastPageIndex ?? this.lastPageIndex,
@@ -999,6 +1037,9 @@ class BooksTableCompanion extends UpdateCompanion<BooksTableData> {
     if (progress.present) {
       map['progress'] = Variable<double>(progress.value);
     }
+    if (bookProgress.present) {
+      map['book_progress'] = Variable<double>(bookProgress.value);
+    }
     if (lastChapterIndex.present) {
       map['last_chapter_index'] = Variable<int>(lastChapterIndex.value);
     }
@@ -1034,6 +1075,7 @@ class BooksTableCompanion extends UpdateCompanion<BooksTableData> {
           ..write('groupId: $groupId, ')
           ..write('lastReadAt: $lastReadAt, ')
           ..write('progress: $progress, ')
+          ..write('bookProgress: $bookProgress, ')
           ..write('lastChapterIndex: $lastChapterIndex, ')
           ..write('lastScrollOffset: $lastScrollOffset, ')
           ..write('lastPageIndex: $lastPageIndex, ')
@@ -3262,6 +3304,7 @@ typedef $$BooksTableTableCreateCompanionBuilder = BooksTableCompanion Function({
   Value<String?> groupId,
   Value<int?> lastReadAt,
   Value<double> progress,
+  Value<double> bookProgress,
   Value<int> lastChapterIndex,
   Value<double> lastScrollOffset,
   Value<int> lastPageIndex,
@@ -3281,6 +3324,7 @@ typedef $$BooksTableTableUpdateCompanionBuilder = BooksTableCompanion Function({
   Value<String?> groupId,
   Value<int?> lastReadAt,
   Value<double> progress,
+  Value<double> bookProgress,
   Value<int> lastChapterIndex,
   Value<double> lastScrollOffset,
   Value<int> lastPageIndex,
@@ -3397,6 +3441,9 @@ class $$BooksTableTableFilterComposer
 
   ColumnFilters<double> get progress => $composableBuilder(
       column: $table.progress, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<double> get bookProgress => $composableBuilder(
+      column: $table.bookProgress, builder: (column) => ColumnFilters(column));
 
   ColumnFilters<int> get lastChapterIndex => $composableBuilder(
       column: $table.lastChapterIndex,
@@ -3539,6 +3586,10 @@ class $$BooksTableTableOrderingComposer
   ColumnOrderings<double> get progress => $composableBuilder(
       column: $table.progress, builder: (column) => ColumnOrderings(column));
 
+  ColumnOrderings<double> get bookProgress => $composableBuilder(
+      column: $table.bookProgress,
+      builder: (column) => ColumnOrderings(column));
+
   ColumnOrderings<int> get lastChapterIndex => $composableBuilder(
       column: $table.lastChapterIndex,
       builder: (column) => ColumnOrderings(column));
@@ -3616,6 +3667,9 @@ class $$BooksTableTableAnnotationComposer
 
   GeneratedColumn<double> get progress =>
       $composableBuilder(column: $table.progress, builder: (column) => column);
+
+  GeneratedColumn<double> get bookProgress => $composableBuilder(
+      column: $table.bookProgress, builder: (column) => column);
 
   GeneratedColumn<int> get lastChapterIndex => $composableBuilder(
       column: $table.lastChapterIndex, builder: (column) => column);
@@ -3756,6 +3810,7 @@ class $$BooksTableTableTableManager extends RootTableManager<
             Value<String?> groupId = const Value.absent(),
             Value<int?> lastReadAt = const Value.absent(),
             Value<double> progress = const Value.absent(),
+            Value<double> bookProgress = const Value.absent(),
             Value<int> lastChapterIndex = const Value.absent(),
             Value<double> lastScrollOffset = const Value.absent(),
             Value<int> lastPageIndex = const Value.absent(),
@@ -3775,6 +3830,7 @@ class $$BooksTableTableTableManager extends RootTableManager<
             groupId: groupId,
             lastReadAt: lastReadAt,
             progress: progress,
+            bookProgress: bookProgress,
             lastChapterIndex: lastChapterIndex,
             lastScrollOffset: lastScrollOffset,
             lastPageIndex: lastPageIndex,
@@ -3794,6 +3850,7 @@ class $$BooksTableTableTableManager extends RootTableManager<
             Value<String?> groupId = const Value.absent(),
             Value<int?> lastReadAt = const Value.absent(),
             Value<double> progress = const Value.absent(),
+            Value<double> bookProgress = const Value.absent(),
             Value<int> lastChapterIndex = const Value.absent(),
             Value<double> lastScrollOffset = const Value.absent(),
             Value<int> lastPageIndex = const Value.absent(),
@@ -3813,6 +3870,7 @@ class $$BooksTableTableTableManager extends RootTableManager<
             groupId: groupId,
             lastReadAt: lastReadAt,
             progress: progress,
+            bookProgress: bookProgress,
             lastChapterIndex: lastChapterIndex,
             lastScrollOffset: lastScrollOffset,
             lastPageIndex: lastPageIndex,

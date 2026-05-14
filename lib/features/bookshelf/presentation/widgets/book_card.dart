@@ -48,11 +48,19 @@ class BookCard extends StatelessWidget {
                 children: [
                   // Cover image or placeholder
                   book.coverPath != null
-                      ? Image.file(
-                          File(book.coverPath!),
-                          fit: BoxFit.cover,
-                          errorBuilder: (_, __, ___) =>
-                              _buildPlaceholder(theme),
+                      ? FutureBuilder<String?>(
+                          future: resolveCoverPath(book.coverPath),
+                          builder: (context, snapshot) {
+                            if (snapshot.hasData && snapshot.data != null) {
+                              return Image.file(
+                                File(snapshot.data!),
+                                fit: BoxFit.cover,
+                                errorBuilder: (_, __, ___) =>
+                                    _buildPlaceholder(theme),
+                              );
+                            }
+                            return _buildPlaceholder(theme);
+                          },
                         )
                       : _buildPlaceholder(theme),
                   // Selection overlay

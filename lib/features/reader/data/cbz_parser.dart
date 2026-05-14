@@ -62,6 +62,7 @@ class CbzParser {
 
     // Use first image as cover
     final coverPath = imagePaths.first;
+    final coverFileName = coverPath.split(Platform.pathSeparator).last;
 
     // Extract title from file name
     final fileName = filePath.split(Platform.pathSeparator).last;
@@ -69,7 +70,7 @@ class CbzParser {
 
     final book = await repo.addBook(
       title: title,
-      coverPath: coverPath,
+      coverPath: coverFileName, // Store relative path (just filename)
       filePath: filePath,
       contentType: 'manga',
     );
@@ -89,7 +90,7 @@ class CbzParser {
     await repo.insertChapters(book.id, [chapterEntry]);
 
     // Update book with cover
-    await repo.updateCoverPath(book.id, coverPath);
+    await repo.updateCoverPath(book.id, coverFileName);
 
     return await repo.getBookById(book.id) ?? book;
   }

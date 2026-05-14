@@ -1,4 +1,21 @@
+import 'dart:io';
+import 'package:path_provider/path_provider.dart';
 import 'package:readlive/core/database/app_database.dart';
+
+/// Get the full file path for a cover image.
+/// Handles both absolute paths (legacy) and relative paths (new).
+Future<String?> resolveCoverPath(String? coverPath) async {
+  if (coverPath == null || coverPath.isEmpty) return null;
+
+  // If it's already an absolute path, return as-is
+  if (coverPath.contains('/') || coverPath.contains('\\')) {
+    return coverPath;
+  }
+
+  // Relative path - construct full path
+  final dir = await getApplicationDocumentsDirectory();
+  return '${dir.path}/covers/$coverPath';
+}
 
 class BookEntity {
   final String id;
@@ -59,5 +76,20 @@ class BookEntity {
       createdAt: data.createdAt,
       updatedAt: data.updatedAt,
     );
+  }
+
+  /// Get the full file path for the cover image.
+  /// Handles both absolute paths (legacy) and relative paths (new).
+  Future<String?> getFullCoverPath() async {
+    if (coverPath == null || coverPath!.isEmpty) return null;
+
+    // If it's already an absolute path, return as-is
+    if (coverPath!.contains('/') || coverPath!.contains('\\')) {
+      return coverPath;
+    }
+
+    // Relative path - construct full path
+    final dir = await getApplicationDocumentsDirectory();
+    return '${dir.path}/covers/$coverPath';
   }
 }
