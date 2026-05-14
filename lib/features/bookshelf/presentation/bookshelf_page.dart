@@ -687,7 +687,7 @@ class _BookList extends ConsumerWidget {
         if (listView) {
           return _buildListView(context, sortedBooks);
         }
-        return _buildGridView(context, books);
+        return _buildGridView(context, sortedBooks);
       },
     );
   }
