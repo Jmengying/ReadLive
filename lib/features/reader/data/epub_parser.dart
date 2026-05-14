@@ -1,6 +1,7 @@
 import 'dart:io';
 import 'package:drift/drift.dart';
 import 'package:epubx/epubx.dart';
+import 'package:flutter/foundation.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:uuid/uuid.dart';
 import 'package:readlive/core/database/app_database.dart';
@@ -316,6 +317,8 @@ class EpubParser {
         }
       }
     }
+
+    return '';
 
     return '[[IMG:$directPath]]';
   }
