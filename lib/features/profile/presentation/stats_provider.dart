@@ -28,6 +28,9 @@ class ReadingStatsData {
   final int totalSeconds;
   final int todaySeconds;
   final int totalBooks;
+  final int finishedBooks;
+  final int readingBooks;
+  final int sessionCount;
 
   const ReadingStatsData({
     required this.weeklyData,
@@ -37,6 +40,9 @@ class ReadingStatsData {
     required this.totalSeconds,
     required this.todaySeconds,
     required this.totalBooks,
+    required this.finishedBooks,
+    required this.readingBooks,
+    required this.sessionCount,
   });
 
   double get avgDailyMinutes {
@@ -105,6 +111,20 @@ final statsProvider = FutureProvider<ReadingStatsData>((ref) async {
   final totalSeconds = await db.getTotalReadingSeconds();
   final todaySeconds = await db.getTodayReadingSeconds();
 
+  // Count finished and reading books
+  var finishedBooks = 0;
+  var readingBooks = 0;
+  for (final book in books) {
+    if (book.progress >= 0.99) {
+      finishedBooks++;
+    } else if (book.progress > 0) {
+      readingBooks++;
+    }
+  }
+
+  // Count total reading sessions
+  final sessionCount = await db.getReadingSessionCount();
+
   return ReadingStatsData(
     weeklyData: weeklyData,
     monthlyData: monthlyData,
@@ -113,5 +133,8 @@ final statsProvider = FutureProvider<ReadingStatsData>((ref) async {
     totalSeconds: totalSeconds,
     todaySeconds: todaySeconds,
     totalBooks: books.length,
+    finishedBooks: finishedBooks,
+    readingBooks: readingBooks,
+    sessionCount: sessionCount,
   );
 });

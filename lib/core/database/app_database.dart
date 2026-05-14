@@ -180,6 +180,11 @@ class AppDatabase extends _$AppDatabase {
     return sessions.fold<int>(0, (sum, s) => sum + s.wordsRead);
   }
 
+  Future<int> getReadingSessionCount() async {
+    final sessions = await select(readingSessionsTable).get();
+    return sessions.length;
+  }
+
   // Book Sources CRUD
   Future<List<BookSourcesTableData>> getAllBookSources() =>
       select(bookSourcesTable).get();

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:fl_chart/fl_chart.dart';
 import 'package:readlive/features/profile/presentation/stats_provider.dart';
+import 'package:readlive/features/settings/presentation/settings_provider.dart';
 
 class StatsPage extends ConsumerWidget {
   const StatsPage({super.key});
@@ -10,6 +11,8 @@ class StatsPage extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final theme = Theme.of(context);
     final statsAsync = ref.watch(statsProvider);
+    final dailyGoal = ref.watch(dailyGoalProvider);
+    final goalNotify = ref.watch(goalNotifyProvider);
 
     return Scaffold(
       appBar: AppBar(title: const Text('阅读统计')),
@@ -21,7 +24,13 @@ class StatsPage extends ConsumerWidget {
           children: [
             // Overview cards
             _buildOverviewCards(context, stats),
-            const SizedBox(height: 20),
+            const SizedBox(height: 16),
+            // Book stats row
+            _buildBookStatsRow(context, stats),
+            const SizedBox(height: 16),
+            // Reading goal
+            _buildGoalCard(context, ref, stats, dailyGoal, goalNotify),
+            const SizedBox(height: 16),
             // Weekly chart
             _buildChartCard(
               context,
@@ -98,6 +107,232 @@ class StatsPage extends ConsumerWidget {
     );
   }
 
+  Widget _buildBookStatsRow(BuildContext context, ReadingStatsData stats) {
+    final theme = Theme.of(context);
+    return Container(
+      padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 16),
+      decoration: BoxDecoration(
+        color: theme.colorScheme.surface,
+        borderRadius: BorderRadius.circular(12),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.04),
+            blurRadius: 8,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceAround,
+        children: [
+          _BookStatItem(
+            icon: Icons.menu_book,
+            label: '在读',
+            value: '${stats.readingBooks}',
+            color: Colors.blue,
+          ),
+          Container(width: 1, height: 32, color: theme.dividerTheme.color),
+          _BookStatItem(
+            icon: Icons.check_circle_outline,
+            label: '读完',
+            value: '${stats.finishedBooks}',
+            color: Colors.green,
+          ),
+          Container(width: 1, height: 32, color: theme.dividerTheme.color),
+          _BookStatItem(
+            icon: Icons.history,
+            label: '阅读次数',
+            value: '${stats.sessionCount}',
+            color: Colors.purple,
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildGoalCard(BuildContext context, WidgetRef ref,
+      ReadingStatsData stats, int dailyGoal, bool goalNotify) {
+    final theme = Theme.of(context);
+    final todayMinutes = stats.todaySeconds ~/ 60;
+    final goalReached = dailyGoal > 0 && todayMinutes >= dailyGoal;
+    final progress = dailyGoal > 0
+        ? (todayMinutes / dailyGoal).clamp(0.0, 1.0)
+        : 0.0;
+
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: theme.colorScheme.surface,
+        borderRadius: BorderRadius.circular(12),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.04),
+            blurRadius: 8,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Icon(Icons.flag_outlined,
+                  size: 20, color: theme.colorScheme.primary),
+              const SizedBox(width: 8),
+              Text(
+                '每日阅读目标',
+                style: theme.textTheme.titleSmall?.copyWith(
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+              const Spacer(),
+              GestureDetector(
+                onTap: () => _showGoalSettingsDialog(context, ref, dailyGoal, goalNotify),
+                child: Icon(Icons.settings_outlined,
+                    size: 18, color: theme.colorScheme.onSurfaceVariant),
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          if (dailyGoal == 0) ...[
+            Text(
+              '未设置目标',
+              style: theme.textTheme.bodyMedium?.copyWith(
+                color: theme.colorScheme.onSurfaceVariant,
+              ),
+            ),
+            const SizedBox(height: 8),
+            SizedBox(
+              width: double.infinity,
+              child: OutlinedButton.icon(
+                icon: const Icon(Icons.add, size: 18),
+                label: const Text('设置阅读目标'),
+                onPressed: () => _showGoalSettingsDialog(context, ref, dailyGoal, goalNotify),
+              ),
+            ),
+          ] else ...[
+            Row(
+              crossAxisAlignment: CrossAxisAlignment.baseline,
+              textBaseline: TextBaseline.alphabetic,
+              children: [
+                Text(
+                  '$todayMinutes',
+                  style: theme.textTheme.headlineMedium?.copyWith(
+                    fontWeight: FontWeight.bold,
+                    color: goalReached
+                        ? Colors.green
+                        : theme.colorScheme.onSurface,
+                  ),
+                ),
+                Text(
+                  ' / $dailyGoal 分钟',
+                  style: theme.textTheme.bodyMedium?.copyWith(
+                    color: theme.colorScheme.onSurfaceVariant,
+                  ),
+                ),
+                if (goalReached) ...[
+                  const SizedBox(width: 8),
+                  Container(
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                    decoration: BoxDecoration(
+                      color: Colors.green.withValues(alpha: 0.1),
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: const Text(
+                      '已达成',
+                      style: TextStyle(
+                        color: Colors.green,
+                        fontSize: 12,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ),
+                ],
+              ],
+            ),
+            const SizedBox(height: 10),
+            ClipRRect(
+              borderRadius: BorderRadius.circular(4),
+              child: LinearProgressIndicator(
+                value: progress,
+                minHeight: 8,
+                backgroundColor: theme.colorScheme.surfaceContainerHighest,
+                color: goalReached ? Colors.green : theme.colorScheme.primary,
+              ),
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+
+  void _showGoalSettingsDialog(
+      BuildContext context, WidgetRef ref, int currentGoal, bool currentNotify) {
+    final controller =
+        TextEditingController(text: currentGoal > 0 ? '$currentGoal' : '');
+    bool notify = currentNotify;
+
+    showDialog(
+      context: context,
+      builder: (ctx) => StatefulBuilder(
+        builder: (ctx, setDialogState) => AlertDialog(
+          title: const Text('设置阅读目标'),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              TextField(
+                controller: controller,
+                keyboardType: TextInputType.number,
+                decoration: const InputDecoration(
+                  labelText: '每日阅读目标（分钟）',
+                  hintText: '例如：30',
+                  suffixText: '分钟',
+                ),
+              ),
+              const SizedBox(height: 16),
+              Row(
+                children: [
+                  const Expanded(child: Text('达成目标时弹窗提醒')),
+                  Switch(
+                    value: notify,
+                    onChanged: (v) => setDialogState(() => notify = v),
+                  ),
+                ],
+              ),
+            ],
+          ),
+          actions: [
+            if (currentGoal > 0)
+              TextButton(
+                onPressed: () {
+                  ref.read(dailyGoalProvider.notifier).setGoal(0);
+                  ref.read(goalNotifyProvider.notifier).setEnabled(false);
+                  Navigator.pop(ctx);
+                },
+                child: const Text('清除目标',
+                    style: TextStyle(color: Colors.red)),
+              ),
+            TextButton(
+              onPressed: () => Navigator.pop(ctx),
+              child: const Text('取消'),
+            ),
+            FilledButton(
+              onPressed: () {
+                final minutes = int.tryParse(controller.text) ?? 0;
+                ref.read(dailyGoalProvider.notifier).setGoal(minutes);
+                ref.read(goalNotifyProvider.notifier).setEnabled(notify);
+                Navigator.pop(ctx);
+              },
+              child: const Text('确定'),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
   Widget _buildChartCard(BuildContext context,
       {required String title, required Widget child}) {
     final theme = Theme.of(context);
@@ -170,7 +405,6 @@ class StatsPage extends ConsumerWidget {
               showTitles: true,
               getTitlesWidget: (value, meta) {
                 final d = data[value.toInt()];
-                final weekdays = ['一', '二', '三', '四', '五', '六', '日'];
                 return Padding(
                   padding: const EdgeInsets.only(top: 4),
                   child: Text(
@@ -326,7 +560,6 @@ class StatsPage extends ConsumerWidget {
           ),
         ),
         const SizedBox(width: 16),
-        // Legend
         Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           mainAxisSize: MainAxisSize.min,
@@ -471,6 +704,43 @@ class _OverviewCard extends StatelessWidget {
           ),
         ],
       ),
+    );
+  }
+}
+
+class _BookStatItem extends StatelessWidget {
+  final IconData icon;
+  final String label;
+  final String value;
+  final Color color;
+
+  const _BookStatItem({
+    required this.icon,
+    required this.label,
+    required this.value,
+    required this.color,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return Column(
+      children: [
+        Icon(icon, color: color, size: 22),
+        const SizedBox(height: 4),
+        Text(
+          value,
+          style: theme.textTheme.titleLarge?.copyWith(
+            fontWeight: FontWeight.bold,
+          ),
+        ),
+        Text(
+          label,
+          style: theme.textTheme.bodySmall?.copyWith(
+            color: theme.colorScheme.onSurfaceVariant,
+          ),
+        ),
+      ],
     );
   }
 }

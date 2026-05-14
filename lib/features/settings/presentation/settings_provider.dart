@@ -355,3 +355,51 @@ final signatureProvider =
   final repo = ref.watch(settingsRepositoryProvider);
   return SignatureNotifier(repo);
 });
+
+// Daily reading goal (minutes, 0 = disabled)
+class DailyGoalNotifier extends StateNotifier<int> {
+  final SettingsRepository _repo;
+
+  DailyGoalNotifier(this._repo) : super(0) {
+    _load();
+  }
+
+  Future<void> _load() async {
+    state = await _repo.getDailyGoalMinutes();
+  }
+
+  Future<void> setGoal(int minutes) async {
+    state = minutes;
+    await _repo.setDailyGoalMinutes(minutes);
+  }
+}
+
+final dailyGoalProvider =
+    StateNotifierProvider<DailyGoalNotifier, int>((ref) {
+  final repo = ref.watch(settingsRepositoryProvider);
+  return DailyGoalNotifier(repo);
+});
+
+// Goal notification toggle
+class GoalNotifyNotifier extends StateNotifier<bool> {
+  final SettingsRepository _repo;
+
+  GoalNotifyNotifier(this._repo) : super(false) {
+    _load();
+  }
+
+  Future<void> _load() async {
+    state = await _repo.getGoalNotify();
+  }
+
+  Future<void> setEnabled(bool enabled) async {
+    state = enabled;
+    await _repo.setGoalNotify(enabled);
+  }
+}
+
+final goalNotifyProvider =
+    StateNotifierProvider<GoalNotifyNotifier, bool>((ref) {
+  final repo = ref.watch(settingsRepositoryProvider);
+  return GoalNotifyNotifier(repo);
+});

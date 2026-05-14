@@ -255,4 +255,28 @@ class SettingsRepository {
     final prefs = await _prefs();
     await prefs.setString(_signatureKey, value);
   }
+
+  // Reading goal keys
+  static const _dailyGoalMinutesKey = 'daily_goal_minutes';
+  static const _goalNotifyKey = 'goal_notify';
+
+  Future<int> getDailyGoalMinutes() async {
+    final prefs = await _prefs();
+    return prefs.getInt(_dailyGoalMinutesKey) ?? 0;
+  }
+
+  Future<void> setDailyGoalMinutes(int minutes) async {
+    final prefs = await _prefs();
+    await prefs.setInt(_dailyGoalMinutesKey, minutes);
+  }
+
+  Future<bool> getGoalNotify() async {
+    final prefs = await _prefs();
+    return prefs.getBool(_goalNotifyKey) ?? false;
+  }
+
+  Future<void> setGoalNotify(bool enabled) async {
+    final prefs = await _prefs();
+    await prefs.setBool(_goalNotifyKey, enabled);
+  }
 }
