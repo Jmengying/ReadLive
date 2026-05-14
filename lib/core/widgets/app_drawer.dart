@@ -128,7 +128,7 @@ class AppDrawer extends ConsumerWidget {
                     icon: Icons.backup_outlined,
                     title: '数据备份',
                     onTap: () {
-                      Navigator.pop(context);
+                      // Don't close drawer first - let the sheet handle it
                       _showBackupRestoreDialog(context, ref);
                     },
                   ),
@@ -226,11 +226,10 @@ class AppDrawer extends ConsumerWidget {
     }
   }
 
-  void _showBackupRestoreDialog(BuildContext context, WidgetRef ref) {
-    final rootContext = context;
+  void _showBackupRestoreDialog(BuildContext drawerContext, WidgetRef ref) {
     showModalBottomSheet(
-      context: context,
-      builder: (ctx) => SafeArea(
+      context: drawerContext,
+      builder: (sheetCtx) => SafeArea(
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
@@ -243,18 +242,26 @@ class AppDrawer extends ConsumerWidget {
               leading: const Icon(Icons.upload_file),
               title: const Text('备份数据'),
               subtitle: const Text('导出数据库到文件'),
-              onTap: () {
-                Navigator.pop(ctx);
-                _doBackup(rootContext, ref);
+              onTap: () async {
+                Navigator.pop(sheetCtx); // Close sheet
+                Navigator.pop(drawerContext); // Close drawer
+                await Future.delayed(const Duration(milliseconds: 300));
+                if (drawerContext.mounted) {
+                  _doBackup(drawerContext, ref);
+                }
               },
             ),
             ListTile(
               leading: const Icon(Icons.download),
               title: const Text('恢复数据'),
               subtitle: const Text('从备份文件恢复'),
-              onTap: () {
-                Navigator.pop(ctx);
-                _doRestore(rootContext, ref);
+              onTap: () async {
+                Navigator.pop(sheetCtx); // Close sheet
+                Navigator.pop(drawerContext); // Close drawer
+                await Future.delayed(const Duration(milliseconds: 300));
+                if (drawerContext.mounted) {
+                  _doRestore(drawerContext, ref);
+                }
               },
             ),
             const SizedBox(height: 8),
