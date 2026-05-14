@@ -43,11 +43,13 @@ class _ReaderPageState extends ConsumerState<ReaderPage> {
   late DateTime _segmentStartTime;
   Timer? _saveTimer;
   Timer? _scrollSaveTimer;
+  String _imageDirPath = '';
 
   @override
   void initState() {
     super.initState();
     _segmentStartTime = DateTime.now();
+    _initImageDirPath();
     _enableWakelock();
     // Save reading session every 30 seconds
     _saveTimer = Timer.periodic(const Duration(seconds: 30), (_) => unawaited(_saveSegment()));
@@ -82,6 +84,17 @@ class _ReaderPageState extends ConsumerState<ReaderPage> {
     _scrollController.dispose();
     WakelockPlus.disable();
     super.dispose();
+  }
+
+  Future<void> _initImageDirPath() async {
+    try {
+      final appDir = await getApplicationDocumentsDirectory();
+      if (mounted) {
+        setState(() {
+          _imageDirPath = '${appDir.path}/book_images/${widget.bookId}';
+        });
+      }
+    } catch (_) {}
   }
 
   void _onScroll() {
@@ -377,7 +390,7 @@ class _ReaderPageState extends ConsumerState<ReaderPage> {
                                       eyeProtection: readingSettings.eyeProtection,
                                       eyeProtectionIntensity: readingSettings.eyeProtectionIntensity,
                                       scrollable: false,
-                                      imageDirPath: 'book_images/${widget.bookId}',
+                                      imageDirPath: _imageDirPath,
                                     ),
                                   ),
                           ),
@@ -714,7 +727,7 @@ class _ReaderPageState extends ConsumerState<ReaderPage> {
                             letterSpacing: readingSettings.letterSpacing,
                             eyeProtection: readingSettings.eyeProtection,
                             eyeProtectionIntensity: readingSettings.eyeProtectionIntensity,
-                            imageDirPath: 'book_images/${widget.bookId}',
+                            imageDirPath: _imageDirPath,
                           ),
                         ),
                         ),

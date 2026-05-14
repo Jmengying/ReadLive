@@ -172,38 +172,16 @@ class TextContentView extends StatelessWidget {
 
   Widget _buildImageWidget(String imagePath) {
     // If path is relative (no directory separators), resolve using imageDirPath
-    if (!imagePath.contains('/') && !imagePath.contains('\\') && imageDirPath != null) {
-      // Use FutureBuilder to resolve relative path asynchronously
-      return FutureBuilder<String>(
-        future: _resolveImagePath(imagePath),
-        builder: (context, snapshot) {
-          if (snapshot.hasData && snapshot.data!.isNotEmpty) {
-            final file = File(snapshot.data!);
-            if (file.existsSync()) {
-              return _buildImage(file);
-            }
-          }
-          return const SizedBox.shrink();
-        },
-      );
+    String fullPath = imagePath;
+    if (!imagePath.contains('/') && !imagePath.contains('\\') && imageDirPath != null && imageDirPath!.isNotEmpty) {
+      fullPath = '$imageDirPath/$imagePath';
     }
 
-    // Legacy absolute path
-    final file = File(imagePath);
+    final file = File(fullPath);
     if (!file.existsSync()) {
       return const SizedBox.shrink();
     }
     return _buildImage(file);
-  }
-
-  Future<String> _resolveImagePath(String fileName) async {
-    if (imageDirPath == null) return '';
-    try {
-      final appDir = await getApplicationDocumentsDirectory();
-      return '${appDir.path}/$imageDirPath/$fileName';
-    } catch (_) {
-      return '';
-    }
   }
 
   Widget _buildImage(File file) {
