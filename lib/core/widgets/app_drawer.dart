@@ -1,6 +1,7 @@
 import 'dart:convert';
 import 'dart:io';
 import 'package:archive/archive.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -306,6 +307,13 @@ class AppDrawer extends ConsumerWidget {
 
       if (savePath == null) return;
 
+      // Show progress
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('正在备份...')),
+        );
+      }
+
       final archive = Archive();
 
       // Add metadata
@@ -313,6 +321,7 @@ class AppDrawer extends ConsumerWidget {
         'version': '1.0.0',
         'createdAt': DateTime.now().toIso8601String(),
         'bookCount': books.length,
+        'appVersion': '1.0.0',
       });
       final metaBytes = utf8.encode(metadata);
       archive.addFile(
@@ -323,47 +332,26 @@ class AppDrawer extends ConsumerWidget {
       archive.addFile(
           ArchiveFile('readlive.sqlite', dbBytes.length, dbBytes));
 
-      // Add cover images
-      final coversDir = Directory('${appDir.path}/covers');
-      if (await coversDir.exists()) {
-        await for (final file in coversDir.list(recursive: true)) {
-          if (file is File) {
-            final relativePath =
-                'covers/${file.path.substring(coversDir.path.length + 1)}';
-            final bytes = await file.readAsBytes();
-            archive.addFile(
-                ArchiveFile(relativePath, bytes.length, bytes));
+      // Helper to add directory contents
+      Future<void> addDir(String name) async {
+        final dir = Directory('${appDir.path}/$name');
+        if (await dir.exists()) {
+          await for (final file in dir.list(recursive: true)) {
+            if (file is File) {
+              final relativePath =
+                  '$name/${file.path.substring(dir.path.length + 1)}';
+              final bytes = await file.readAsBytes();
+              archive.addFile(
+                  ArchiveFile(relativePath, bytes.length, bytes));
+            }
           }
         }
       }
 
-      // Add manga images
-      final mangaDir = Directory('${appDir.path}/manga');
-      if (await mangaDir.exists()) {
-        await for (final file in mangaDir.list(recursive: true)) {
-          if (file is File) {
-            final relativePath =
-                'manga/${file.path.substring(mangaDir.path.length + 1)}';
-            final bytes = await file.readAsBytes();
-            archive.addFile(
-                ArchiveFile(relativePath, bytes.length, bytes));
-          }
-        }
-      }
-
-      // Add book_images
-      final bookImagesDir = Directory('${appDir.path}/book_images');
-      if (await bookImagesDir.exists()) {
-        await for (final file in bookImagesDir.list(recursive: true)) {
-          if (file is File) {
-            final relativePath =
-                'book_images/${file.path.substring(bookImagesDir.path.length + 1)}';
-            final bytes = await file.readAsBytes();
-            archive.addFile(
-                ArchiveFile(relativePath, bytes.length, bytes));
-          }
-        }
-      }
+      await addDir('covers');
+      await addDir('manga');
+      await addDir('book_images');
+      await addDir('avatars');
 
       // Encode and save
       final zipBytes = ZipEncoder().encode(archive);
@@ -383,6 +371,7 @@ class AppDrawer extends ConsumerWidget {
         );
       }
     } catch (e) {
+      debugPrint('备份失败: $e');
       if (context.mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text('备份失败: $e')),
@@ -421,7 +410,7 @@ class AppDrawer extends ConsumerWidget {
       if (metadataFile == null) {
         if (context.mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('无效的备份文件')),
+            const SnackBar(content: Text('无效的备份文件（缺少 metadata.json）')),
           );
         }
         return;
@@ -448,7 +437,7 @@ class AppDrawer extends ConsumerWidget {
               Text('版本: $backupVersion',
                   style: Theme.of(ctx).textTheme.bodySmall),
               Text(
-                  '备份时间: ${createdAt.substring(0, 19).replaceAll('T', ' ')}',
+                  '备份时间: ${createdAt.length >= 19 ? createdAt.substring(0, 19).replaceAll('T', ' ') : createdAt}',
                   style: Theme.of(ctx).textTheme.bodySmall),
               Text('书籍数量: $bookCount',
                   style: Theme.of(ctx).textTheme.bodySmall),
@@ -469,10 +458,19 @@ class AppDrawer extends ConsumerWidget {
 
       if (confirmed != true) return;
 
+      // Show progress
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('正在恢复...')),
+        );
+      }
+
       final appDir = await getApplicationDocumentsDirectory();
 
-      // Close the current database
-      ref.read(databaseProvider).close();
+      // Close the current database before overwriting
+      try {
+        ref.read(databaseProvider).close();
+      } catch (_) {}
 
       // Extract all files from backup
       for (final file in archive) {
@@ -485,10 +483,14 @@ class AppDrawer extends ConsumerWidget {
 
       if (context.mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('恢复成功，请重启应用')),
+          const SnackBar(
+            content: Text('恢复成功，请重启应用'),
+            duration: Duration(seconds: 5),
+          ),
         );
       }
     } catch (e) {
+      debugPrint('恢复失败: $e');
       if (context.mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text('恢复失败: $e')),
