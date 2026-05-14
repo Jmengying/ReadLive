@@ -28,6 +28,7 @@ class _BookshelfPageState extends ConsumerState<BookshelfPage>
   final Set<String> _selectedBooks = {};
   String? _activeGroupId;
   bool _listView = false;
+  String _sortMode = 'name'; // 'name', 'recent', 'unread'
   final _scaffoldKey = GlobalKey<ScaffoldState>();
 
   @override
@@ -115,6 +116,7 @@ class _BookshelfPageState extends ConsumerState<BookshelfPage>
               child: _BookList(
                 contentType: widget.contentType,
                 groupId: _activeGroupId,
+                sortMode: _sortMode,
                 selectionMode: _selectionMode,
                 selectedBooks: _selectedBooks,
                 listView: _listView,
@@ -145,29 +147,39 @@ class _BookshelfPageState extends ConsumerState<BookshelfPage>
     return Column(
       children: [
         // Main nav row
-        Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 4),
-          child: Row(
+        SizedBox(
+          height: 48,
+          child: Stack(
             children: [
-              // Hamburger menu
-              IconButton(
-                icon: const Icon(Icons.menu, size: 24),
-                onPressed: () => _scaffoldKey.currentState?.openDrawer(),
-              ),
-              // Tab switch: 书库 / 漫画
-              Expanded(
-                child: Center(
-                  child: _buildTabSwitch(theme),
+              // Center tab switch
+              Center(child: _buildTabSwitch(theme)),
+              // Left: hamburger menu
+              Positioned(
+                left: 0,
+                top: 0,
+                bottom: 0,
+                child: IconButton(
+                  icon: const Icon(Icons.menu, size: 24),
+                  onPressed: () => _scaffoldKey.currentState?.openDrawer(),
                 ),
               ),
-              // Search + Add
-              IconButton(
-                icon: const Icon(Icons.search, size: 22),
-                onPressed: () => context.push('/search'),
-              ),
-              IconButton(
-                icon: const Icon(Icons.add, size: 22),
-                onPressed: _importFile,
+              // Right: search + add
+              Positioned(
+                right: 0,
+                top: 0,
+                bottom: 0,
+                child: Row(
+                  children: [
+                    IconButton(
+                      icon: const Icon(Icons.search, size: 22),
+                      onPressed: () => context.push('/search'),
+                    ),
+                    IconButton(
+                      icon: const Icon(Icons.add, size: 22),
+                      onPressed: _importFile,
+                    ),
+                  ],
+                ),
               ),
             ],
           ),
@@ -398,23 +410,47 @@ class _BookshelfPageState extends ConsumerState<BookshelfPage>
                       TextStyle(fontSize: 16, fontWeight: FontWeight.w600)),
             ),
             ListTile(
-              leading: const Icon(Icons.sort_by_alpha),
+              leading: Icon(Icons.sort_by_alpha,
+                  color: _sortMode == 'name'
+                      ? Theme.of(context).colorScheme.primary
+                      : null),
               title: const Text('按书名排序'),
+              trailing: _sortMode == 'name'
+                  ? Icon(Icons.check,
+                      color: Theme.of(context).colorScheme.primary)
+                  : null,
               onTap: () {
+                setState(() => _sortMode = 'name');
                 Navigator.pop(ctx);
               },
             ),
             ListTile(
-              leading: const Icon(Icons.access_time),
+              leading: Icon(Icons.access_time,
+                  color: _sortMode == 'recent'
+                      ? Theme.of(context).colorScheme.primary
+                      : null),
               title: const Text('按最近阅读排序'),
+              trailing: _sortMode == 'recent'
+                  ? Icon(Icons.check,
+                      color: Theme.of(context).colorScheme.primary)
+                  : null,
               onTap: () {
+                setState(() => _sortMode = 'recent');
                 Navigator.pop(ctx);
               },
             ),
             ListTile(
-              leading: const Icon(Icons.check_circle_outline),
+              leading: Icon(Icons.check_circle_outline,
+                  color: _sortMode == 'unread'
+                      ? Theme.of(context).colorScheme.primary
+                      : null),
               title: const Text('只看未读完'),
+              trailing: _sortMode == 'unread'
+                  ? Icon(Icons.check,
+                      color: Theme.of(context).colorScheme.primary)
+                  : null,
               onTap: () {
+                setState(() => _sortMode = 'unread');
                 Navigator.pop(ctx);
               },
             ),
@@ -573,6 +609,7 @@ class _BookshelfPageState extends ConsumerState<BookshelfPage>
 class _BookList extends ConsumerWidget {
   final String contentType;
   final String? groupId;
+  final String sortMode;
   final bool selectionMode;
   final Set<String> selectedBooks;
   final bool listView;
@@ -582,6 +619,7 @@ class _BookList extends ConsumerWidget {
   const _BookList({
     required this.contentType,
     this.groupId,
+    required this.sortMode,
     required this.selectionMode,
     required this.selectedBooks,
     required this.listView,
@@ -617,8 +655,37 @@ class _BookList extends ConsumerWidget {
             ),
           );
         }
+
+        // Apply sorting/filtering
+        final sortedBooks = List<BookEntity>.from(books);
+        switch (sortMode) {
+          case 'name':
+            sortedBooks.sort((a, b) => a.title.compareTo(b.title));
+          case 'recent':
+            // Keep original order (already sorted by last read)
+            break;
+          case 'unread':
+            sortedBooks.removeWhere((b) => b.progress >= 0.99);
+        }
+
+        if (sortedBooks.isEmpty) {
+          return Center(
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Icon(Icons.check_circle_outline,
+                    size: 64,
+                    color: Theme.of(context).colorScheme.outline),
+                const SizedBox(height: 16),
+                Text('没有未读完的书籍',
+                    style: Theme.of(context).textTheme.titleMedium),
+              ],
+            ),
+          );
+        }
+
         if (listView) {
-          return _buildListView(context, books);
+          return _buildListView(context, sortedBooks);
         }
         return _buildGridView(context, books);
       },
