@@ -791,10 +791,11 @@ class _BookList extends ConsumerWidget {
   }
 }
 
-/// Natural sort comparison that handles numbers within strings.
-/// "第2卷" comes before "第10卷" (numeric comparison).
+/// Natural sort comparison that handles Arabic and Chinese numbers.
+/// "第2卷" < "第10卷", "第一卷" < "第二卷" < "第十卷" < "第十一卷"
 int _naturalCompare(String a, String b) {
-  final pattern = RegExp(r'(\d+)|(\D+)');
+  // Pattern: Arabic numbers, Chinese number sequences, or other text
+  final pattern = RegExp(r'(\d+)|([零一二三四五六七八九十百千万亿]+)|(\D+?)(?=\d|[零一二三四五六七八九十百千万亿]|$)');
   final aMatches = pattern.allMatches(a).toList();
   final bMatches = pattern.allMatches(b).toList();
 
@@ -802,12 +803,12 @@ int _naturalCompare(String a, String b) {
     final aPart = aMatches[i].group(0)!;
     final bPart = bMatches[i].group(0)!;
 
-    final aIsNum = RegExp(r'^\d+$').hasMatch(aPart);
-    final bIsNum = RegExp(r'^\d+$').hasMatch(bPart);
+    final aNum = _tryParseNumber(aPart);
+    final bNum = _tryParseNumber(bPart);
 
-    if (aIsNum && bIsNum) {
+    if (aNum != null && bNum != null) {
       // Both are numbers: compare numerically
-      final cmp = int.parse(aPart).compareTo(int.parse(bPart));
+      final cmp = aNum.compareTo(bNum);
       if (cmp != 0) return cmp;
     } else {
       // At least one is text: compare as string
@@ -818,4 +819,66 @@ int _naturalCompare(String a, String b) {
 
   // Shorter string comes first
   return aMatches.length.compareTo(bMatches.length);
+}
+
+/// Try to parse a string as a number (Arabic or Chinese).
+/// Returns null if not a valid number.
+int? _tryParseNumber(String s) {
+  // Try Arabic number
+  final arabic = int.tryParse(s);
+  if (arabic != null) return arabic;
+
+  // Try Chinese number
+  return _parseChineseNumber(s);
+}
+
+/// Parse Chinese number string to int.
+/// Supports: 一二三...十百千万亿, e.g., 一, 十, 十一, 二十, 一百二十三
+int? _parseChineseNumber(String s) {
+  if (s.isEmpty) return null;
+
+  const digits = {
+    '零': 0, '一': 1, '二': 2, '三': 3, '四': 4,
+    '五': 5, '六': 6, '七': 7, '八': 8, '九': 9,
+  };
+  const units = {
+    '十': 10, '百': 100, '千': 1000, '万': 10000, '亿': 100000000,
+  };
+
+  // Single digit
+  if (s.length == 1 && digits.containsKey(s)) {
+    return digits[s];
+  }
+
+  // Parse compound Chinese numbers
+  var result = 0;
+  var current = 0;
+  var hasDigit = false;
+
+  for (final char in s.split('')) {
+    if (digits.containsKey(char)) {
+      current = digits[char]!;
+      hasDigit = true;
+    } else if (units.containsKey(char)) {
+      final unit = units[char]!;
+      if (current == 0 && !hasDigit) {
+        // Handle cases like "十" (meaning 10, not 0*10)
+        current = 1;
+      }
+      if (unit >= 10000) {
+        // 万 and 亿 are multipliers for the accumulated result
+        result = (result + current) * unit;
+        current = 0;
+      } else {
+        result += current * unit;
+        current = 0;
+      }
+      hasDigit = false;
+    } else {
+      return null; // Not a Chinese number
+    }
+  }
+
+  result += current;
+  return result > 0 ? result : null;
 }
