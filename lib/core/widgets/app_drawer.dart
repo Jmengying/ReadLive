@@ -242,6 +242,8 @@ class AppDrawer extends ConsumerWidget {
   }
 
   void _showBackupRestoreDialog(BuildContext context, WidgetRef ref) {
+    // Capture the root context before showing the sheet
+    final rootContext = context;
     showModalBottomSheet(
       context: context,
       builder: (ctx) => SafeArea(
@@ -260,7 +262,10 @@ class AppDrawer extends ConsumerWidget {
               subtitle: const Text('导出数据库到文件'),
               onTap: () {
                 Navigator.pop(ctx);
-                _backupDatabase(context, ref);
+                // Delay to allow sheet to close
+                Future.delayed(const Duration(milliseconds: 300), () {
+                  _backupDatabase(rootContext, ref);
+                });
               },
             ),
             ListTile(
@@ -269,7 +274,9 @@ class AppDrawer extends ConsumerWidget {
               subtitle: const Text('从备份文件恢复'),
               onTap: () {
                 Navigator.pop(ctx);
-                _restoreDatabase(context, ref);
+                Future.delayed(const Duration(milliseconds: 300), () {
+                  _restoreDatabase(rootContext, ref);
+                });
               },
             ),
             const SizedBox(height: 8),
@@ -282,10 +289,13 @@ class AppDrawer extends ConsumerWidget {
   Future<void> _backupDatabase(
       BuildContext context, WidgetRef ref) async {
     try {
+      debugPrint('备份: 开始备份流程');
       final appDir = await getApplicationDocumentsDirectory();
+      debugPrint('备份: 应用目录 ${appDir.path}');
       final dbFile = File('${appDir.path}/readlive.sqlite');
 
       if (!await dbFile.exists()) {
+        debugPrint('备份: 数据库文件不存在');
         if (context.mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(content: Text('数据库文件不存在')),
@@ -296,6 +306,7 @@ class AppDrawer extends ConsumerWidget {
 
       final repo = ref.read(bookRepositoryProvider);
       final books = await repo.getAllBooks();
+      debugPrint('备份: 共 ${books.length} 本书');
 
       final savePath = await FilePicker.platform.saveFile(
         dialogTitle: '保存备份文件',
@@ -305,9 +316,14 @@ class AppDrawer extends ConsumerWidget {
         allowedExtensions: ['zip'],
       );
 
-      if (savePath == null) return;
+      debugPrint('备份: 保存路径 $savePath');
+      if (savePath == null) {
+        debugPrint('备份: 用户取消了选择');
+        return;
+      }
 
       // Show progress
+      debugPrint('备份: context.mounted = ${context.mounted}');
       if (context.mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text('正在备份...')),
@@ -364,6 +380,7 @@ class AppDrawer extends ConsumerWidget {
         return;
       }
       await File(savePath).writeAsBytes(zipBytes);
+      debugPrint('备份: 文件已保存到 $savePath');
 
       if (context.mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
